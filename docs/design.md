@@ -9,7 +9,7 @@ One page on how Keyhole works and where its trust boundaries are. Command and to
 | --- | --- | --- |
 | `keyhole` CLI (`keyhole.cli`) | your terminal, on demand | The only place grants change: open, close, resume, forget, access, setup, history |
 | Grants and runtime state | `~/.config/keyhole/` (0700) | `grants.json`, `runtime.json`, `runtime.key`, `changes.sqlite3`, `management.lock`, `profiles/` |
-| `tunnel-client` runtime | background, supervised by OpenAI's client (tmux) | Outbound connection to OpenAI; forwards JSON-RPC to the server over stdio |
+| `tunnel-client` runtime | background, supervised by OpenAI's client (a `tmux` session when `tmux` is installed, a detached process otherwise) | Outbound connection to OpenAI; forwards JSON-RPC to the server over stdio |
 | MCP server (`keyhole.server`) | child of the runtime | Twelve tools; every call re-checks authorization before touching a file |
 | Parser subprocess (`keyhole.parsers`) | per document read | PDF, Office and image parsing under CPU, memory, time and size limits |
 

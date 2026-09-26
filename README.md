@@ -25,15 +25,20 @@ Unofficial project; not affiliated with OpenAI.
 - **No shell, no public endpoint, no third-party relay.** The only network path is the outbound connection
   from OpenAI's tunnel client on your Mac to OpenAI. Close the last folder and the tunnel stops.
 
-## What you need
+## Requirements
 
-- macOS on Apple silicon or Intel. Linux is untested; Windows is not supported.
-- [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no
-  Node, no Docker.
-- A ChatGPT account with **Developer mode** (Plus, Pro, Business, Enterprise and Edu on the web; on a team
-  workspace an admin may have to enable it).
-- An OpenAI Platform organization where you can create a **tunnel** and a **restricted API key**.
-- About 15 minutes for the first setup. Afterwards it is one command to open a folder.
+Everything Keyhole needs, and exactly what has been verified (as of 2026-09-26). If your setup is in the
+"not tested" part, it may well work, but nobody has checked.
+
+| | Needed | Verified |
+| --- | --- | --- |
+| Computer | A Mac | macOS 15.6 on Apple silicon. Intel Macs and older macOS: not tested. Linux: unit tests only, the real flow is not tested. Windows: not supported. |
+| Tools | [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no Node, no Docker. | The Homebrew path, and the no-Homebrew path (uv's installer plus the `tunnel-client` release zip). |
+| Python | None to install. `uv` downloads one for Keyhole; 3.11 or newer works. | 3.11, 3.12, 3.13 and 3.14 in CI; a machine without Python received 3.14. |
+| `tunnel-client` | Any version you accept in `keyhole setup` | 0.0.14. 0.0.15 is not tested yet. Tested with `tmux` installed; `tunnel-client` uses it when present and does not need it. |
+| ChatGPT | An account with **Developer mode** | A Pro account, ChatGPT on the web, Chat mode. OpenAI also lists Plus, Business, Enterprise and Edu; on a team workspace an admin may have to enable Developer mode. Not tested here. |
+| OpenAI Platform | An organization where you can create a **tunnel** and a **restricted API key** | One personal organization. |
+| Time | About 15 minutes once; afterwards one command to open a folder | |
 
 ## How it works
 
@@ -70,11 +75,12 @@ Then, once:
    keyhole open ~/Documents/project
    ```
 
-   The output ends with the runtime state; `"ready": true` means the tunnel is up.
+   The `runtime` block in the output should show `"ready": true`; that means the tunnel is up.
 3. Create your private ChatGPT app: **Settings → Security and login → Developer mode**, then on the Plugins
    page add an app with **Connection: Tunnel** (pick your tunnel) and **Authentication: No Authentication**.
    Details and the reasons behind each choice: [docs/setup.md](docs/setup.md#4-create-your-private-chatgpt-app).
-4. In a new chat, choose the app from the composer's **+** menu and ask, for example:
+4. In a new chat, type `@` and pick the app (or choose it from the composer's **+** menu), then ask, for
+   example:
 
    > List my workspaces, then read `README.md` in `project` and summarize it.
 
@@ -103,22 +109,24 @@ Example requests in ChatGPT:
 > Search `notes` for "invoice", then quote the matching lines with their file paths.
 
 For an edit, ChatGPT reads the file and its hash, proposes the change, and calls `apply_text_patch` or
-`write_file`. ChatGPT asks you to confirm each write unless you turned that off in the app settings.
+`write_file`. Whether ChatGPT asks you before a write is ChatGPT's own setting for the app (it asks by
+default and can remember your answer for a conversation); check the app's details if you never see a prompt.
 
 ## What ChatGPT can do with each file type
 
 | File type | Read | Create, replace, patch | Copy, move, rename, delete, restore |
 | --- | --- | --- | --- |
 | UTF-8 text: code, Markdown, JSON, YAML, TOML, shell, HTML, CSS, plain text, any other extension not listed below | by line range | yes (`rw`) | yes (`rw`) |
-| UTF-16 / UTF-32 text with a BOM | by line range | no, convert to UTF-8 first | yes |
-| PDF | text per page, one page as an image; no OCR | no | yes |
-| Word `.docx` | body paragraphs and tables | no | yes |
-| PowerPoint `.pptx` | slide and table text | no | yes |
-| Excel `.xlsx` | cells, formulas and cached values; no recalculation | no | yes |
-| PNG, JPEG, WebP | the image, downscaled if large | no | yes |
-| Archives, executables, databases, media, legacy Office (`.doc`, `.xls`, `.ppt`) | metadata only | no | yes |
+| UTF-16 / UTF-32 text with a BOM | by line range | no, convert to UTF-8 first | yes (`rw`) |
+| PDF | text per page, one page as an image; no OCR | no | yes (`rw`) |
+| Word `.docx` | body paragraphs and tables | no | yes (`rw`) |
+| PowerPoint `.pptx` | slide and table text | no | yes (`rw`) |
+| Excel `.xlsx` | cells, formulas and cached values; no recalculation | no | yes (`rw`) |
+| PNG, JPEG, WebP | the image, downscaled if large | no | yes (`rw`) |
+| Archives, executables, databases, media, legacy Office (`.doc`, `.xls`, `.ppt`) | metadata only | no | yes (`rw`) |
 
-Copy, move, delete and restore treat every regular file as opaque bytes, so they work for binaries too.
+Copy, move, delete and restore treat every regular file up to 8 MiB as opaque bytes, so they work for
+binaries too.
 Keyhole cannot write Office documents, PDFs or images, and does not run code, macros or formulas.
 
 Limits: text files up to 8 MiB; documents and images up to 64 MiB; 400 lines or 64 KiB per read; 1 MiB per
@@ -142,8 +150,8 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
 
 - Grants live in `~/.config/keyhole/grants.json` and change only through `keyhole`. There is no remote tool to
   add folders, run commands, use Git, or fetch URLs.
-- Names such as `.git`, `.ssh`, `.env*`, `*.key`, `*.pem`, `credentials*`, `node_modules` and agent state
-  directories are hidden at any depth, in any letter case. `keyhole open` prints the full list.
+- Names such as `.git`, `.ssh`, `.env*`, `*.key`, `*.pem`, `credentials.json`, `node_modules` and agent
+  state directories are hidden at any depth, in any letter case. `keyhole open` prints the full list.
 - Your own `--exclude` rules: a pattern without a slash hides matching names at any depth (`Private`,
   `*.log`); a pattern with a slash is anchored at the folder root and hides that subtree (`Secret/*`,
   `docs/*.md`). Matching ignores case and Unicode normalization.
@@ -165,7 +173,7 @@ Threat model, what is out of scope, and how to report a vulnerability: [SECURITY
 | `keyhole access NAME ro\|rw` | Change a saved folder's mode |
 | `keyhole close [NAME...\|--all]` | Stop sharing; saved paths and history stay |
 | `keyhole resume [NAME...\|--all]` | Re-verify saved folders and share them again |
-| `keyhole forget NAME` | Stop sharing and remove the saved configuration |
+| `keyhole forget [NAME...\|--all]` | Stop sharing and remove the saved configuration |
 | `keyhole status` | Configuration, environment checks, runtime state, open folders |
 | `keyhole history [--limit N]` | Recent recoverable changes, including interrupted ones |
 | `keyhole purge-history --before DATE --confirm` | Permanently delete completed history before a date |
@@ -181,8 +189,8 @@ Every command prints JSON; `"ok": false` comes with an `error.code` you can act 
 | `create_directory`, `copy_file`, `move_file`, `delete_file` | Single-item file operations, each recoverable |
 | `list_changes`, `restore_change` | Recent changes and undo |
 
-The five read tools are marked read-only and the seven write tools destructive, so ChatGPT asks before
-writing. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md).
+The five read tools are marked read-only and the seven write tools destructive, which is what ChatGPT's
+write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md).
 
 ## Troubleshooting
 
@@ -201,13 +209,7 @@ writing. Full parameters, error codes and limits: [docs/reference.md](docs/refer
   account).
 - **ro / rw**: read-only / read-write. New folders are `ro`.
 - **Runtime**: the `tunnel-client` process that keeps your tunnel connected and runs the Keyhole server.
-- **Chat vs Work**: ChatGPT composer modes. Keyhole works in plain Chat; Work is not required.
-
-## Tested with
-
-macOS 15 on Apple silicon, Python 3.11 to 3.14, `tunnel-client` 0.0.14, ChatGPT on the web (Chat mode) with a
-Pro account, September 2026. Keyhole refuses `tunnel-client` versions it has not been tested with unless you
-accept them explicitly during setup.
+- **Chat vs Work**: ChatGPT composer modes. Keyhole was tested in plain Chat; Work is not required.
 
 ## Non-goals, and when to use something else
 
@@ -219,8 +221,8 @@ Keyhole is for ChatGPT on the web, documents as evidence, and careful edits.
 ## Optional: Codex companion
 
 `skills/keyhole/` is a skill for OpenAI Codex that lets it run `keyhole` on your explicit instruction and
-explains the boundaries. Install it as a local plugin from this repository if you use Codex; it is not needed
-for ChatGPT.
+explains the boundaries. Link that directory into `~/.codex/skills/` (the layout Codex discovers);
+`.codex-plugin/plugin.json` describes the same skill for Codex's plugin installer. Not needed for ChatGPT.
 
 ## Repository
 

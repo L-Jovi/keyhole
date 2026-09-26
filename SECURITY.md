@@ -4,7 +4,7 @@
 
 Please use GitHub's private vulnerability reporting for this repository (**Security → Report a
 vulnerability**). Do not open a public issue for anything that could let a remote party read or change files
-outside an opened folder. You will get an acknowledgement within a week; this is a single-maintainer project,
+outside an opened folder. I aim to acknowledge reports within a week; this is a single-maintainer project,
 so fixes are best effort.
 
 Only the latest release is supported.

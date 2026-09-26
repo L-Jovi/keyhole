@@ -21,6 +21,10 @@ a **Refresh**.
 - Python 3.14 is tested in CI; `uv tool install` picks it on a machine without Python.
 - Docs: the install section lists what is actually required (Homebrew, `uv`, `tunnel-client`); Python is
   downloaded by `uv`, and `tmux` is not a requirement. `keyhole setup` only notes when `tmux` is absent.
+- Docs: a requirements table states exactly what was verified (macOS 15.6 on Apple silicon, Python
+  3.11–3.14, `tunnel-client` 0.0.14, a Pro account in Chat mode) and what was not (Intel Macs, older macOS,
+  Linux end to end, other ChatGPT plans, `tunnel-client` 0.0.15); the no-Homebrew install path is spelled
+  out and was verified on a machine with nothing installed.
 
 ## [0.3.0] - 2026-09-26
 

@@ -7,14 +7,17 @@ time to time; when a screen differs from the description, the official
 
 ## 1. Create a tunnel and a runtime key (OpenAI Platform)
 
-1. Open **Settings → Organization → Tunnels** on [platform.openai.com](https://platform.openai.com) and
-   create a tunnel. Give it a recognizable name, for example `keyhole-macbook`.
+1. Open **Settings → Organization → Tunnels** on OpenAI Platform
+   ([platform.openai.com/settings/organization/tunnels](https://platform.openai.com/settings/organization/tunnels))
+   and create a tunnel. Give it a recognizable name, for example `keyhole-macbook`.
 2. Associate the tunnel **only with the ChatGPT workspace you use yourself**. Anyone in an associated
    workspace who holds the Tunnels *Read + Use* permission can select this tunnel when creating an app,
    which would connect their ChatGPT to your Mac.
 3. Copy the tunnel id: `tunnel_` followed by 32 lowercase letters or digits. `keyhole setup` checks the
    format, and `tunnel-client` refuses anything else.
-4. Open **Settings → Organization → API keys** and create a **restricted** key with exactly two permissions:
+4. Open **Settings → Organization → API keys**
+   ([platform.openai.com/settings/organization/api-keys](https://platform.openai.com/settings/organization/api-keys))
+   and create a **restricted** key with exactly two permissions:
    **Tunnels: Read** and **Tunnels: Use**. Do not use an admin key; `keyhole setup` refuses keys that start
    with `sk-admin-`. Keep the key in your clipboard for the next step; you will not see it again.
 
@@ -31,9 +34,24 @@ keyhole setup
 
 No Python installation is needed: `uv` downloads a private interpreter for Keyhole when none is available.
 
-Without Homebrew: install [uv](https://docs.astral.sh/uv/getting-started/installation/) and a
-`tunnel-client` build from the [releases page](https://github.com/openai/tunnel-client/releases) (verify the
-published checksum), then pass its location with `keyhole --tunnel-client /path/to/tunnel-client setup`.
+Without Homebrew (verified on a machine with nothing installed):
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh          # installs uv into ~/.local/bin
+uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
+```
+
+Then download `tunnel-client-v0.0.14-darwin-arm64.zip` (Intel: `-darwin-amd64.zip`) and `SHA256SUMS.txt`
+from the [releases page](https://github.com/openai/tunnel-client/releases/tag/v0.0.14), and:
+
+```sh
+grep " tunnel-client-v0.0.14-darwin-arm64.zip$" SHA256SUMS.txt | shasum -a 256 -c -
+unzip -o tunnel-client-v0.0.14-darwin-arm64.zip tunnel-client -d ~/.local/bin
+keyhole setup
+```
+
+Both paths end with `keyhole` and `tunnel-client` in `~/.local/bin`; the installers tell you if that
+directory is not on your `PATH`.
 
 `keyhole setup`:
 
@@ -74,14 +92,14 @@ The first `open` registers a `tunnel-client` runtime named `keyhole`, starts it,
    the caller's workspace and the runtime key on your side. The Keyhole server does not have user accounts,
    so there is nothing for a second login to protect. This is also why the tunnel must stay associated with
    your own workspace only.
-6. Leave the write confirmation at its default. ChatGPT will ask before each `write_file`, `delete_file` and
-   the other tools marked destructive.
-7. Save. If ChatGPT reports that the server did not respond, check `keyhole status` shows `"ready": true`
-   and try again; the app is created only after a successful discovery call.
+6. Leave the write confirmation at its default: ChatGPT asks before tools marked destructive (`write_file`,
+   `delete_file`, …) and can remember your answer for a conversation.
+7. Save. ChatGPT contacts the server while creating the app; if it reports that the server did not respond,
+   check that `keyhole status` shows `"ready": true` and try again.
 
 ## 5. Smoke test
 
-Start a new chat, choose the app from the composer's **+** menu, and try:
+Start a new chat, type `@` and pick the app (or choose it from the composer's **+** menu), and try:
 
 > List my workspaces.
 
@@ -100,7 +118,8 @@ a change that `keyhole history` does not show, the change did not happen.
   not accepted yet; the next `keyhole open` refuses with `client_version_changed`. Read the client's release
   notes, then run `keyhole setup --accept-client-version` and `keyhole resume --all`. Revoking access
   (`keyhole close`) always works, whatever the installed version.
-- **Upgrading Keyhole.** `uv tool upgrade keyhole`, or reinstall with a new tag. When the changelog says
+- **Upgrading Keyhole.** Reinstall with the new tag:
+  `uv tool install --reinstall "keyhole @ git+https://github.com/L-Jovi/keyhole@vX.Y.Z"`. When the changelog says
   the tool definitions changed, open the app's details in ChatGPT and press **Refresh**, then start a new
   chat. Opening new folders never needs a refresh.
 - **Rotating the key.** Create a new restricted key on OpenAI Platform, run `keyhole setup --rotate-key`,
