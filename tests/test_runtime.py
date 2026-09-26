@@ -77,6 +77,12 @@ class RuntimeTests(unittest.TestCase):
     def test_version_policy_blocks_connect_but_never_stop(self):
         (self.tmp / "fake-tunnel-version").write_text("0.0.15+abc\n")
         self.refused("client_version_changed", self.runtime.preflight)
+        with self.assertRaises(KeyholeError) as caught:
+            self.runtime.preflight()
+        self.assertIn(
+            self.store.command("setup", "--accept-client-version", client=FAKE),
+            caught.exception.message,
+        )
         self.refused("client_version_changed", lambda: self.runtime.connect("generation-2"))
         checks = self.runtime.checks()
         self.assertFalse(checks["ok"])

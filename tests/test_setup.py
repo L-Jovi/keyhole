@@ -106,7 +106,7 @@ class SetupTests(unittest.TestCase):
         self.refused("not_configured", store.read)
         status = Manager(store, NativeRuntime(store, str(self.root / "missing-client"))).status()
         self.assertFalse(status["configured"])
-        self.assertEqual(status["next_step"], "keyhole setup")
+        self.assertEqual(status["next_step"], store.command("setup"))
         self.assertEqual(status["checks"]["client_error"]["code"], "native_client_missing")
         self.assertEqual(status["checks"]["config_error"]["code"], "not_configured")
         self.state.mkdir(mode=0o700)

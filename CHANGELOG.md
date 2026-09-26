@@ -6,7 +6,31 @@ All notable changes to this project are documented here. The format follows
 behavior; the CHANGELOG says when the MCP tool definitions changed, because that is when a ChatGPT app needs
 a **Refresh**.
 
-## [Unreleased]
+## [0.3.2] - 2026-09-26
+
+The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
+
+### Fixed
+
+- Permission downgrades revoke the old writer before runtime checks, even after a client-version change
+  or when the shared root is missing.
+- Recovery remains possible when history is full. An interrupted restore retries in place, completed
+  recovery stays within retention limits, and a failed reservation does not discard earlier history.
+- Pending writes and state-directory protection cover case and Unicode aliases. Runtime cleanup only
+  selects parser processes for the requested state directory.
+- Source archives include the plugin metadata needed by the test suite. Suggested next commands retain
+  custom state and tunnel-client paths.
+
+### Changed
+
+- The distribution is `keyhole-mcp` to avoid the unrelated PyPI package named `keyhole`; the CLI and module
+  stay `keyhole`. No PyPI publication is implied; see the
+  [upgrade notes](docs/maintenance.md#upgrades).
+- One complete first-use guide replaces overlapping README/setup instructions, with an existing demo file,
+  explicit account prerequisites and PATH steps. Maintenance is separate.
+- Parser documentation states the actual limits: process separation is not an OS sandbox; memory limits are
+  best-effort and parsers retain the user's OS permissions.
+- Clean-install evidence is described as a simulation, not a freshly erased machine.
 
 ## [0.3.1] - 2026-09-26
 
@@ -36,7 +60,7 @@ The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh
 - Docs: a requirements table states exactly what was verified (macOS 15.6 on Apple silicon, Python
   3.11–3.14, `tunnel-client` 0.0.14, a Pro account in Chat mode) and what was not (Intel Macs, older macOS,
   Linux end to end, other ChatGPT plans, `tunnel-client` 0.0.15); the no-Homebrew install path is spelled
-  out and was verified on a machine with nothing installed.
+  out and was verified in a simulated environment with developer-tool commands unavailable.
 
 ## [0.3.0] - 2026-09-26
 

@@ -313,7 +313,7 @@ wheels = [
 ]
 
 [[package]]
-name = "keyhole"
+name = "keyhole-mcp"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },

@@ -11,7 +11,7 @@ One page on how Keyhole works and where its trust boundaries are. Command and to
 | Grants and runtime state | `~/.config/keyhole/` (0700) | `grants.json`, `runtime.json`, `runtime.key`, `changes.sqlite3`, `management.lock`, `profiles/` |
 | `tunnel-client` runtime | background, supervised by OpenAI's client (a `tmux` session if `tmux` is installed, a detached process otherwise; both keep running after the terminal closes) | Outbound connection to OpenAI; forwards JSON-RPC to the server over stdio |
 | MCP server (`keyhole.server`) | child of the runtime | Twelve tools; every call re-checks authorization before touching a file |
-| Parser subprocess (`keyhole.parsers`) | per document read | PDF, Office and image parsing under CPU, memory, time and size limits |
+| Parser subprocess (`keyhole.parsers`) | per document read | PDF, Office and image parsing under CPU, time and size limits; best-effort address-space limit |
 
 The server is started by the runtime with `python -m keyhole.server --state-dir … --generation …`. It never
 listens on a port.
@@ -49,7 +49,9 @@ patterns follow the rules in the README. Names are compared after Unicode NFC no
 folding, because macOS file systems are case-insensitive and normalization-insensitive.
 
 Documents are parsed in a separate interpreter (`python -I -m keyhole.parsers`) that receives only an
-anonymous copy of the bytes, has no network, and is killed at 20 seconds wall clock or 15 seconds CPU. OOXML
+anonymous copy of the bytes, and is killed at 20 seconds wall clock or 15 seconds CPU. It retains the
+current user's OS file and network permissions; there is no OS sandbox. A 2 GiB address-space limit is
+attempted, but may be rejected on macOS. OOXML
 containers are checked for size, member paths, entities and DTDs before any library opens them.
 
 ## Writing
@@ -85,8 +87,10 @@ an operation is in flight so an interruption is still repairable.
 
 The history is bounded to 1000 records or 450 MiB of records. Before a new record is written, the oldest
 `committed` or `restored` records are evicted until it fits; `prepared` records are never evicted, and if
-only those remain the write is refused with `history_full`. Eviction and `purge-history` both release the
-freed pages back to the file system where SQLite's incremental vacuum allows it.
+only those remain the write is refused with `history_full`. A restore may reserve one extra record and 48 MiB until it completes; retries reuse the same prepared
+restore record. The original is pinned during recovery, and both statuses are committed atomically before
+eviction returns usage to the normal limits. Freed SQLite pages are reused; `purge-history` additionally
+requests incremental vacuum. The database file has a separate 512 MiB page cap.
 
 ## The tunnel
 

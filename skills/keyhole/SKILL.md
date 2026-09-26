@@ -50,6 +50,8 @@ user run the command in a normal terminal.
 
 Every change ChatGPT makes has a `change_id`. `operation_incomplete` means an interrupted operation: inspect
 `keyhole history`, then have ChatGPT call `restore_change` for that id; do not retry with a new request id.
+If the interrupted operation was itself a restore, retry the same original `change_id` and `request_id`
+reported in the error. That resumes its prepared recovery record without consuming another history slot.
 Restore refuses to overwrite later edits and requires `rw`. Folders opened with `--recovery off` keep paths
 and hashes only, so committed edits there cannot be restored; interrupted ones still can.
 

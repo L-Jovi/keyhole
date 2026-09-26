@@ -13,7 +13,7 @@ body:
     id: env
     attributes:
       label: Environment
-      description: Output of `keyhole status` (remove the tunnel id if you prefer), macOS version, `tunnel-client --version`, and how you installed keyhole.
+      description: Output of `keyhole status` with tunnel ids and private paths removed, macOS version, `tunnel-client --version`, and how you installed keyhole. Never include API keys or private file contents.
     validations:
       required: true
   - type: checkboxes

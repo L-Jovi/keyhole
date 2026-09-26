@@ -405,6 +405,7 @@ class Bridge:
                     "cell_range": cell_range,
                 },
                 self.generation,
+                state_dir=str(self.store.path),
             )
         current = fs.metadata(path)
         require(

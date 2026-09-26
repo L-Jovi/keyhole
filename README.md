@@ -1,4 +1,4 @@
-# Keyhole
+# Keyhole — local files for ChatGPT
 
 Let ChatGPT read, and carefully edit, only the local folders you choose. No shell, no public port.
 
@@ -9,7 +9,7 @@ Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on yo
 tool, `keyhole`. You open a folder with `keyhole open`; ChatGPT on the web can then read it through OpenAI's
 official [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). Give a folder
 `rw`, and ChatGPT can also create and edit text files in it. Every edit is checked against the file's current
-hash, applied atomically, recorded, and can be undone.
+hash and recorded before it is applied. Individual file replacements are atomic; retained changes can be restored without overwriting later edits.
 
 Unofficial project; not affiliated with OpenAI.
 
@@ -17,28 +17,48 @@ Unofficial project; not affiliated with OpenAI.
 
 - **Read-only by default.** ChatGPT sees a folder only after you open it, and cannot change a file until you
   say `--access rw`. Nothing ChatGPT does can widen its own access: grants are managed by the local CLI only.
-- **Careful edits you can undo.** Writes require the file's current SHA-256, so a stale view never overwrites
-  newer work. The previous content is kept in a private local history, and `restore_change` rolls it back.
+- **Careful edits you can undo.** Writes require the file's current SHA-256; updates based on a stale hash
+  are refused. The previous content is kept in a private local history, and `restore_change` rolls it back.
 - **Evidence-grade reading.** Text, PDF, Word, PowerPoint, Excel and images come back with hashes and ranges,
-  so answers can cite exactly what was read. Document parsers run in a separate process with CPU, memory and
-  size limits.
+  so answers can cite what was read. Document parsers have CPU, time and input-size limits, but run with
+  your OS permissions; they are not an OS sandbox.
 - **No shell, no public endpoint, no third-party relay.** The only network path is the outbound connection
   from OpenAI's tunnel client on your Mac to OpenAI. Close the last folder and the tunnel stops.
 
-## Requirements
+## Start here
 
-Everything Keyhole needs, and exactly what has been verified (as of 2026-09-26). If your setup is in the
-"not tested" part, it may well work, but nobody has checked.
+**[Set up Keyhole and read your first file →](docs/setup.md)**
 
-| | Needed | Verified |
-| --- | --- | --- |
-| Computer | A Mac | macOS 15.6 on Apple silicon. Intel Macs and older macOS: not tested. Linux: unit tests only, the real flow is not tested. Windows: not supported; `keyhole` says so and exits. |
-| Tools | [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no Git or Xcode command line tools, no tmux, no Node, no Docker. | The Homebrew path, and the no-Homebrew path on a Mac without Xcode command line tools (simulated). |
-| Python | None to install. `uv` downloads one for Keyhole; 3.11 or newer works. | 3.11, 3.12, 3.13 and 3.14 in CI; a Mac without Python received 3.14. |
-| `tunnel-client` | Any version you accept in `keyhole setup` | 0.0.14, with and without `tmux` installed. 0.0.15 is not tested yet. |
-| ChatGPT | An account with **Developer mode** | A Pro account, ChatGPT on the web, Chat mode. OpenAI also lists Plus, Business, Enterprise and Edu; on a team workspace an admin may have to enable Developer mode. Not tested here. |
-| OpenAI Platform | An organization where you can create a **tunnel** and a **restricted API key** | One personal organization. |
-| Time | About 15 minutes once; afterwards one command to open a folder | |
+That is the complete first-time path: check your account access, install the tools, connect your own tunnel,
+create a private ChatGPT app, and read a real demo file. Follow it once, from top to bottom. No Python, Git,
+Node, Docker or tmux installation is required. You need a Mac, ChatGPT Developer mode and permission to create
+an OpenAI Platform tunnel and restricted runtime key. Budget about 15 minutes after account access is ready.
+
+The GitHub repository supplies the software. **You create your own tunnel and private ChatGPT app**;
+there is no public Keyhole app to add in one click. OpenAI's Secure MCP Tunnel is for private connections,
+not public plugin-store distribution.
+
+### What makes it useful
+
+Open several folders independently, keep some read-only, and allow recoverable text edits in others.
+Read documents as well as source code, then close a folder when the task is finished. Folder access always
+stays under your local control.
+
+![A real ChatGPT conversation reading hello.txt through Keyhole](docs/images/read-file.png)
+
+Recorded with a synthetic demo folder on macOS, 2026-09-26. See the
+[first-use guide](docs/setup.md) to reproduce it with your own private app.
+
+### Compatibility
+
+| Surface | Verified / limitation |
+| --- | --- |
+| macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
+| Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
+| Other OS | Linux has experimental unit tests only. Windows is unsupported; commands report this without a traceback. |
+| OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
+| ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
+| Clean install | Release wheel tested with Git/Python developer-tool commands unavailable in a simulated environment; not a freshly erased Mac. |
 
 ## How it works
 
@@ -54,37 +74,6 @@ flowchart LR
 `tunnel-client` is OpenAI's open-source client. It opens an outbound connection and forwards each request to
 the Keyhole server over stdio; no port on your Mac is exposed. The server reads and writes only inside folders
 you opened, and refuses anything else.
-
-## Install
-
-```sh
-brew install uv openai/tools/tunnel-client
-uv tool install https://github.com/L-Jovi/keyhole/releases/download/v0.3.1/keyhole-0.3.1-py3-none-any.whl
-```
-
-That is all. `uv` brings its own Python, keeps Keyhole in an isolated environment, and links `keyhole` into
-`~/.local/bin` (it tells you if that directory is not on your `PATH`). Nothing else on your system changes.
-
-Then, once:
-
-1. Create a tunnel and a runtime key on OpenAI Platform, and run `keyhole setup`. It asks for the tunnel id and
-   the key (typed hidden, stored in `~/.config/keyhole/`, mode 0600). Step by step: [docs/setup.md](docs/setup.md).
-2. Open a folder:
-
-   ```sh
-   keyhole open ~/Documents/project
-   ```
-
-   The `runtime` block in the output should show `"ready": true`; that means the tunnel is up.
-3. Create your private ChatGPT app: **Settings → Security and login → Developer mode**, then on the Plugins
-   page add an app with **Connection: Tunnel** (pick your tunnel) and **Authentication: No Authentication**.
-   Details and the reasons behind each choice: [docs/setup.md](docs/setup.md#4-create-your-private-chatgpt-app).
-4. In a new chat, type `@` and pick the app (or choose it from the composer's **+** menu), then ask, for
-   example:
-
-   > List my workspaces, then read `README.md` in `project` and summarize it.
-
-The app belongs to your ChatGPT account and points at your tunnel; it is not shared with anyone.
 
 ## Daily use
 
@@ -139,9 +128,12 @@ the file is touched: the paths, hashes and, by default, the previous content. Th
 and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never the stored content.
 
 - History is bounded to 1000 records or 450 MiB. When it is full, the oldest completed records are dropped
-  automatically; an interrupted operation is never dropped until you restore it.
+  automatically; an interrupted operation is never dropped. Recovery can temporarily reserve one extra
+  record and 48 MiB so a full history does not prevent repair. Retry an interrupted restore with the same
+  request id; successful recovery returns history to the normal limits.
 - Closing or forgetting a folder keeps its history. `keyhole purge-history --before 2026-01-01 --confirm`
-  deletes completed records before a date; nothing else deletes them.
+  deletes completed records before a date. Eviction or purge removes both recovery and replay protection
+  for those records; history is not a permanent audit log.
 - Prefer your own version control? `keyhole open <dir> --access rw --recovery off` keeps paths and hashes
   only. Edits are still hash-checked and interrupted operations can still be repaired, but `restore_change`
   refuses committed edits for that folder.
@@ -190,7 +182,8 @@ Every command prints JSON; `"ok": false` comes with an `error.code` you can act 
 | `list_changes`, `restore_change` | Recent changes and undo |
 
 The five read tools are marked read-only and the seven write tools destructive, which is what ChatGPT's
-write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md).
+write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md). Upgrades, custom paths and
+uninstall: [maintenance](docs/maintenance.md).
 
 ## Troubleshooting
 
@@ -200,7 +193,7 @@ write confirmation keys on. Full parameters, error codes and limits: [docs/refer
 | `client_version_changed` | `tunnel-client` was upgraded. Check the release notes, then `keyhole setup --accept-client-version`. |
 | `symlink_in_path` | The folder, the state directory, or one of their parents is behind a symbolic link. Use the physical path (`pwd -P`). |
 | `permission_denied` on Desktop, Documents or Downloads | macOS is protecting the folder. Allow your terminal app under System Settings → Privacy & Security → Files and Folders, then retry. |
-| `runtime_not_ready` or the app says the server is unreachable | `tunnel-client runtimes status keyhole`, then `keyhole resume --all`. `ready: true` locally only means the tunnel is up; test with a real call in ChatGPT. |
+| `runtime_not_ready` or the app says the server is unreachable | `tunnel-client runtimes status keyhole`, then `keyhole resume NAME` for the folder you intend to share. `ready: true` locally only means the tunnel is up; test with a real call in ChatGPT. |
 | Tools missing in ChatGPT after an upgrade | Open the app's details in ChatGPT and press **Refresh**, then start a new chat. New folders never need a refresh. |
 
 ## Glossary
