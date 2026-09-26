@@ -8,6 +8,11 @@ a **Refresh**.
 
 ## [Unreleased]
 
+### Changed
+
+- Docs: `tmux` is optional (tunnel-client falls back to a detached process without it); Python is
+  downloaded by `uv`, no separate install. `keyhole setup` phrases the missing-tmux note accordingly.
+
 ## [0.3.0] - 2026-09-26
 
 First public release, renamed from the private project "Local Evidence Bridge" (CLI `leb`). The MCP tool

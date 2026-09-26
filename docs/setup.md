@@ -23,12 +23,16 @@ needs the restricted key.
 ## 2. Install the tools and run `keyhole setup`
 
 ```sh
-brew install uv tmux openai/tools/tunnel-client
+brew install uv openai/tools/tunnel-client
 uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
 keyhole setup
 ```
 
-Without Homebrew: install [uv](https://docs.astral.sh/uv/getting-started/installation/), `tmux`, and a
+No Python installation is needed: `uv` downloads a private interpreter for Keyhole when none is available.
+`tmux` is optional; `tunnel-client` prefers it for the background runtime and falls back to a detached process
+without it (Keyhole was tested with `tmux` present, so `brew install tmux` is the safe choice).
+
+Without Homebrew: install [uv](https://docs.astral.sh/uv/getting-started/installation/) and a
 `tunnel-client` build from the [releases page](https://github.com/openai/tunnel-client/releases) (verify the
 published checksum), then pass its location with `keyhole --tunnel-client /path/to/tunnel-client setup`.
 
@@ -36,7 +40,7 @@ published checksum), then pass its location with `keyhole --tunnel-client /path/
 
 - checks that `tunnel-client` runs and reports a version this release was tested with (currently 0.0.14).
   A newer version is accepted only when you type its number back;
-- warns when `tmux` is missing (`tunnel-client runtimes` needs it to keep the tunnel running);
+- notes when `tmux` is missing (`tunnel-client` then runs the tunnel as a detached process, a setup Keyhole has not been tested with);
 - asks for the tunnel id, then for the key with hidden input;
 - writes `~/.config/keyhole/runtime.json` (tunnel id, a *reference* to the key file, accepted client
   version) and `~/.config/keyhole/runtime.key` (the key, mode 0600). The key is never printed, logged, or

@@ -133,7 +133,8 @@ def run_setup(args, parser: argparse.ArgumentParser) -> dict:
     tmux = shutil.which("tmux")
     if not tmux:
         print(
-            "warning: tmux is not on PATH; tunnel-client runtimes need it (brew install tmux).",
+            "note: tmux is not on PATH; tunnel-client will run the tunnel as a detached process, "
+            "which Keyhole has not been tested with (brew install tmux is the tested setup).",
             file=sys.stderr,
         )
     tunnel_id = input("Tunnel id (tunnel_...): ").strip()
