@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 behavior; the CHANGELOG says when the MCP tool definitions changed, because that is when a ChatGPT app needs
 a **Refresh**.
 
+## [Unreleased]
+
+### Added
+
+- Glama maintainer metadata and a disposable, read-only evaluation container using the existing stdio
+  server. CI checks the real tool schemas, synthetic reads and permission boundaries in Linux Docker.
+  This is a directory evaluation fixture, not a new installation method or Linux support claim.
+  Production tools and dependencies are unchanged; no ChatGPT app Refresh is needed.
+
 ## [0.3.2] - 2026-09-26
 
 The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.

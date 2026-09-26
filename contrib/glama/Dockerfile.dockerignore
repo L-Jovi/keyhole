@@ -1,0 +1,12 @@
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src/
+!src/**
+!contrib/
+!contrib/glama/
+!contrib/glama/bootstrap.py
+**/__pycache__/
+**/*.pyc

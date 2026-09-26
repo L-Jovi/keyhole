@@ -53,7 +53,7 @@ packages = ["src/keyhole"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src", "tests", "docs", "skills", ".codex-plugin", "uv.lock",
+    "src", "tests", "docs", "skills", "contrib", ".codex-plugin", "uv.lock", "glama.json",
     "README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "AGENTS.md",
 ]
