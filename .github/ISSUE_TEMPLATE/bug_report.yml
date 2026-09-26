@@ -1,0 +1,25 @@
+name: Bug report
+description: Something did not behave as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what happened instead. Paste the JSON that `keyhole` printed; it never contains your key.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Output of `keyhole status` (remove the tunnel id if you prefer), macOS version, `tunnel-client --version`, and how you installed keyhole.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I did not paste an API key, tunnel id or private file contents into this report.
+          required: true

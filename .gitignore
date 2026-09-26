@@ -1,0 +1,39 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+
+# Tool caches and test output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Secrets and local state never belong in the repository
+.env*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Local acceptance material and agent session files
+/evidence/
+/test-data/
+/RESULT.md
+.claude/
+
+# Editor and OS noise
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+._*

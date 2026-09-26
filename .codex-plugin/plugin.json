@@ -1,0 +1,18 @@
+{
+  "name": "keyhole",
+  "version": "0.3.0",
+  "description": "Manage the local directory grants behind your private ChatGPT app: read-only by default, explicit rw for version-checked, recoverable text edits.",
+  "author": {
+    "name": "Jovi"
+  },
+  "interface": {
+    "displayName": "Keyhole",
+    "shortDescription": "Local folder grants for your private ChatGPT app.",
+    "longDescription": "Open, close, resume and inspect the local directories shared with your own ChatGPT app through OpenAI's Secure MCP Tunnel. New grants are read-only; explicit rw enables hash-checked, recoverable edits of UTF-8 text. No remote grants, no shell.",
+    "developerName": "Jovi",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Inspect Keyhole status or manage the directory grants the user explicitly asked for."
+  },
+  "skills": "./skills/"
+}

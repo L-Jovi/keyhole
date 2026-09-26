@@ -1,0 +1,504 @@
+[
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Apply 1-64 literal replacements to an existing UTF-8 file <=8 MiB. Each edit has old/new text and exact match count (default 1); ambiguous matches are refused. Requires rw, observed SHA-256 and unique request_id. Preserves untouched content, BOM/newlines and permissions. Returns change_id for recovery.",
+    "input_schema": {
+      "$defs": {
+        "TextEdit": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "default": 1,
+              "title": "Count",
+              "type": "integer"
+            },
+            "new": {
+              "title": "New",
+              "type": "string"
+            },
+            "old": {
+              "title": "Old",
+              "type": "string"
+            }
+          },
+          "required": [
+            "old",
+            "new"
+          ],
+          "title": "TextEdit",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "edits": {
+          "items": {
+            "$ref": "#/$defs/TextEdit"
+          },
+          "title": "Edits",
+          "type": "array"
+        },
+        "expected_sha256": {
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "edits",
+        "expected_sha256",
+        "request_id"
+      ],
+      "title": "apply_text_patchArguments",
+      "type": "object"
+    },
+    "name": "apply_text_patch"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Copy one regular file <=8 MiB within an rw workspace. Require source SHA-256 and an absent destination with an existing parent. No recursive trees, links or overwrite. Returns a recoverable change_id.",
+    "input_schema": {
+      "properties": {
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "expected_sha256": {
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "destination",
+        "expected_sha256",
+        "request_id"
+      ],
+      "title": "copy_fileArguments",
+      "type": "object"
+    },
+    "name": "copy_file"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Create one absent directory in an rw space; parent must exist. Returns a change_id; restore removes it only if empty and unchanged. Cannot modify the workspace root.",
+    "input_schema": {
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "request_id"
+      ],
+      "title": "create_directoryArguments",
+      "type": "object"
+    },
+    "name": "create_directory"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Recoverably delete one regular file <=8 MiB from an rw space after checking its SHA-256. Stores original bytes in private local recovery history; use restore_change to undo. No directory or permanent deletion tool.",
+    "input_schema": {
+      "properties": {
+        "expected_sha256": {
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "expected_sha256",
+        "request_id"
+      ],
+      "title": "delete_fileArguments",
+      "type": "object"
+    },
+    "name": "delete_file"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "List 1-100 recent changes and interrupted commits for the current physical workspace. Returns paths, hashes, state and change_id, never backup contents. History persists offline; changing root identity does not inherit its history.",
+    "input_schema": {
+      "properties": {
+        "limit": {
+          "default": 20,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace"
+      ],
+      "title": "list_changesArguments",
+      "type": "object"
+    },
+    "name": "list_changes"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "List 1-200 permitted entries at a workspace-relative directory. Follow next_cursor; changed content invalidates pagination.",
+    "input_schema": {
+      "properties": {
+        "cursor": {
+          "default": "",
+          "title": "Cursor",
+          "type": "string"
+        },
+        "limit": {
+          "default": 100,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "path": {
+          "default": ".",
+          "title": "Path",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace"
+      ],
+      "title": "list_directoryArguments",
+      "type": "object"
+    },
+    "name": "list_directory"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Discover current open workspace names, availability, exclusions and read limits. Local absolute paths are never required remotely.",
+    "input_schema": {
+      "properties": {},
+      "title": "list_workspacesArguments",
+      "type": "object"
+    },
+    "name": "list_workspaces"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Move or rename one regular file <=8 MiB within an rw workspace, requiring source SHA-256 and an absent destination. Destination is verified before source removal; interruption is recoverable, not a multi-file atomic transaction. No recursive directory moves.",
+    "input_schema": {
+      "properties": {
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "expected_sha256": {
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "destination",
+        "expected_sha256",
+        "request_id"
+      ],
+      "title": "move_fileArguments",
+      "type": "object"
+    },
+    "name": "move_file"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Read source with SHA-256 and ranges. Text: start/limit lines <=400, newline metadata for edits. PDF: pages <=5, mode=image renders one page, no OCR. DOCX: body blocks <=400. PPTX: slides <=20. XLSX: sheet and A1 cell_range <=2000 cells, formulas/caches without recalculation. Images return image content. mode=hash returns only SHA-256 for any permitted file <=64 MiB; mode=metadata avoids hashing/parsing. Never infer complete text from a truncated result.",
+    "input_schema": {
+      "properties": {
+        "cell_range": {
+          "default": "",
+          "title": "Cell Range",
+          "type": "string"
+        },
+        "expected_sha256": {
+          "default": "",
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "limit": {
+          "default": 0,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "mode": {
+          "default": "auto",
+          "title": "Mode",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sheet": {
+          "default": "",
+          "title": "Sheet",
+          "type": "string"
+        },
+        "start": {
+          "default": 1,
+          "title": "Start",
+          "type": "integer"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path"
+      ],
+      "title": "read_fileArguments",
+      "type": "object"
+    },
+    "name": "read_file"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Undo one committed or interrupted change in an rw space, only if every affected path still matches that operation. Refuses to overwrite later edits. Removes created files, restores deleted/edited files, reverses moves, and removes created directories only if empty. Returns a new recovery record.",
+    "input_schema": {
+      "properties": {
+        "change_id": {
+          "title": "Change Id",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "change_id",
+        "request_id"
+      ],
+      "title": "restore_changeArguments",
+      "type": "object"
+    },
+    "name": "restore_change"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Literal name or plain-text search. Bounded scan reports omissions, incomplete scopes and next_cursor. PDF/Office/OCR content is not indexed.",
+    "input_schema": {
+      "properties": {
+        "case_sensitive": {
+          "default": false,
+          "title": "Case Sensitive",
+          "type": "boolean"
+        },
+        "cursor": {
+          "default": "",
+          "title": "Cursor",
+          "type": "string"
+        },
+        "kind": {
+          "default": "name",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "path": {
+          "default": ".",
+          "title": "Path",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "query"
+      ],
+      "title": "search_filesArguments",
+      "type": "object"
+    },
+    "name": "search_files"
+  },
+  {
+    "annotations": {
+      "destructive_hint": true,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "description": "Create or replace a UTF-8 text/code/Markdown/config file in an rw space. Supply full text <=1 MiB, observed SHA-256 (or 'absent' for create), and unique request_id. Preserve existing UTF-8 BOM, CRLF and permissions by default; line_ending can be preserve/lf/crlf. Returns recoverable change_id. Prefer apply_text_patch for partial reads. No document binaries or code execution.",
+    "input_schema": {
+      "properties": {
+        "expected_sha256": {
+          "title": "Expected Sha256",
+          "type": "string"
+        },
+        "line_ending": {
+          "default": "preserve",
+          "title": "Line Ending",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "text",
+        "expected_sha256",
+        "request_id"
+      ],
+      "title": "write_fileArguments",
+      "type": "object"
+    },
+    "name": "write_file"
+  }
+]

@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a change or an addition
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do with ChatGPT and your local files that does not work today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work? Note whether it changes a trust boundary (grants, writes, exclusions, shell).
