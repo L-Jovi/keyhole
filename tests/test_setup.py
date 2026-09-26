@@ -14,7 +14,7 @@ from keyhole.runtime import NativeRuntime
 from keyhole.state import StateStore
 
 KEY = "sk-test-not-a-real-key-0123456789"  # gitleaks:allow
-TUNNEL = "tunnel_test_not_real_0123456789"
+TUNNEL = "tunnel_0123456789abcdef0123456789abcdef"  # not a real tunnel
 
 
 class SetupTests(unittest.TestCase):
@@ -112,6 +112,14 @@ class SetupTests(unittest.TestCase):
         self.state.mkdir(mode=0o700)
         self.refused("not_configured", lambda: store.read("runtime.json"))
         self.refused("offline", store.read)
+
+    def test_tunnel_id_must_match_tunnel_client_format(self):
+        for bad in ("not-a-tunnel", "tunnel_TOO_SHORT", "tunnel_" + "x" * 31, "tunnel_" + "X" * 32):
+            self.refused(
+                "invalid_tunnel_id",
+                lambda bad=bad: configure.save_runtime(self.state, bad, KEY, "0.0.14"),
+            )
+        self.assertFalse(self.state.exists())
 
 
 if __name__ == "__main__":

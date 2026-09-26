@@ -11,7 +11,7 @@ from .errors import KeyholeError, require
 from .filesystem import local_path_error
 from .state import StateStore
 
-TUNNEL_ID = re.compile(r"tunnel_[A-Za-z0-9_-]{8,128}")
+TUNNEL_ID = re.compile(r"tunnel_[a-z0-9]{32}")
 DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 
 
@@ -19,7 +19,8 @@ def validate_tunnel_id(value: str) -> None:
     require(
         TUNNEL_ID.fullmatch(value) is not None,
         "invalid_tunnel_id",
-        "Expected the tunnel_... id shown in OpenAI Platform > Settings > Tunnels.",
+        "Expected the tunnel id shown in OpenAI Platform > Settings > Tunnels: "
+        "`tunnel_` followed by 32 lowercase letters or digits.",
     )
 
 

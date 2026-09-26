@@ -20,7 +20,7 @@ ALIAS = "keyhole"
 PROFILE = "keyhole"
 # Versions of the official tunnel-client that this release was verified against end to end.
 TESTED_CLIENT_VERSIONS = ("0.0.14",)
-TUNNEL_ID = re.compile(r"tunnel_[A-Za-z0-9_-]{8,128}")
+TUNNEL_ID = re.compile(r"tunnel_[a-z0-9]{32}")
 VERSION = re.compile(r"^\s*v?(\d+\.\d+\.\d+)")
 SERVER_MODULE = "keyhole.server"
 PARSER_MODULE = "keyhole.parsers"

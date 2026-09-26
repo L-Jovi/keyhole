@@ -12,7 +12,8 @@ time to time; when a screen differs from the description, the official
 2. Associate the tunnel **only with the ChatGPT workspace you use yourself**. Anyone in an associated
    workspace who holds the Tunnels *Read + Use* permission can select this tunnel when creating an app,
    which would connect their ChatGPT to your Mac.
-3. Copy the tunnel id. It looks like `tunnel_` followed by letters and digits.
+3. Copy the tunnel id: `tunnel_` followed by 32 lowercase letters or digits. `keyhole setup` checks the
+   format, and `tunnel-client` refuses anything else.
 4. Open **Settings → Organization → API keys** and create a **restricted** key with exactly two permissions:
    **Tunnels: Read** and **Tunnels: Use**. Do not use an admin key; `keyhole setup` refuses keys that start
    with `sk-admin-`. Keep the key in your clipboard for the next step; you will not see it again.

@@ -205,7 +205,7 @@ writing. Full parameters, error codes and limits: [docs/reference.md](docs/refer
 
 ## Tested with
 
-macOS 15 on Apple silicon, Python 3.11 to 3.13, `tunnel-client` 0.0.14, ChatGPT on the web (Chat mode) with a
+macOS 15 on Apple silicon, Python 3.11 to 3.14, `tunnel-client` 0.0.14, ChatGPT on the web (Chat mode) with a
 Pro account, September 2026. Keyhole refuses `tunnel-client` versions it has not been tested with unless you
 accept them explicitly during setup.
 

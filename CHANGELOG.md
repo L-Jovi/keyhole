@@ -10,12 +10,15 @@ a **Refresh**.
 
 ### Fixed
 
+- `keyhole setup` now checks the tunnel id format the way `tunnel-client` does (`tunnel_` plus 32
+  lowercase letters or digits), so a typo is caught at setup instead of at the first `open`.
 - `keyhole open` on a directory that does not exist reported `not_configured` instead of
   `path_missing`, because the state-directory check also caught errors raised while the state
   directory was open. Found by the experimental Linux CI job.
 
 ### Changed
 
+- Python 3.14 is tested in CI; `uv tool install` picks it on a machine without Python.
 - Docs: the install section lists what is actually required (Homebrew, `uv`, `tunnel-client`); Python is
   downloaded by `uv`, and `tmux` is not a requirement. `keyhole setup` only notes when `tmux` is absent.
 
