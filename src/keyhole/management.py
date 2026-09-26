@@ -54,17 +54,24 @@ class Manager:
         return {"runtime": running, "configuration": state, "policy": policy_summary()}
 
     def check_not_state(self, root: Path) -> None:
-        state = self.store.path
-        require(
-            root != state and state not in root.parents and root not in state.parents,
-            "protected_root",
-            "The private state directory cannot be shared or contain a shared directory.",
-        )
+        with (
+            absolute_directory(root) as (root_fd, root_walk),
+            absolute_directory(self.store.path) as (state_fd, state_walk),
+        ):
+            # Kernel identities also cover case, Unicode and volume-path aliases.
+            require(
+                identity(os.fstat(root_fd)) not in {identity(os.fstat(fd)) for fd in state_walk.fds}
+                and identity(os.fstat(state_fd))
+                not in {identity(os.fstat(fd)) for fd in root_walk.fds},
+                "protected_root",
+                "The private state directory cannot be shared or contain a shared directory.",
+            )
 
     def verify_root(self, grant: dict) -> None:
         """A saved grant may only be activated through its canonical, unchanged root."""
         path = Path(grant["path"])
         check_root(path)
+        self.check_not_state(path)
         with absolute_directory(path) as (fd, walk):
             actual = canonical_path(fd)
             require(
@@ -126,6 +133,7 @@ class Manager:
                 mode_changed = (access is not None and access != item.get("access", "ro")) or (
                     recovery is not None and recovery != item.get("recovery", "on")
                 )
+                reducing_access = access == "ro" and item.get("access", "ro") == "rw"
                 if access is not None:
                     item["access"] = access
                 if recovery is not None:
@@ -140,7 +148,8 @@ class Manager:
                             "policy": policy_summary(),
                         }
                 item["enabled"] = True
-                self.runtime.preflight()
+                if not reducing_access:
+                    self.runtime.preflight()
                 return self.transition(state)
             require(
                 len(state["workspaces"]) < 64,
@@ -184,10 +193,12 @@ class Manager:
             matches = [w for w in state["workspaces"] if w["name"] == name]
             require(len(matches) == 1, "workspace_unknown", "The alias is not configured.")
             grant = matches[0]
-            self.verify_root(grant)
+            if access == "rw":
+                self.verify_root(grant)
             grant["access"] = access
             # Changing a saved permission does not reopen a closed workspace.
-            if any(w["enabled"] for w in state["workspaces"]):
+            # Revocation must reach transition's durable write even if a restart cannot pass preflight.
+            if access == "rw" and any(w["enabled"] for w in state["workspaces"]):
                 self.runtime.preflight()
             return self.transition(state)
 
@@ -236,7 +247,7 @@ class Manager:
                 "configured": False,
                 "state_dir": str(self.store.path),
                 "checks": self.runtime.checks(),
-                "next_step": "keyhole setup",
+                "next_step": self.store.command("setup"),
             }
         result = self.runtime.status()
         live = bool(result.get("ready") and result.get("process_running"))

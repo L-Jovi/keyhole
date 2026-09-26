@@ -55,10 +55,14 @@ def owned_processes(state_dir: Path | None = None) -> dict[int, str]:
             words = shlex.split(fields[2])
         except ValueError:
             continue
-        if SERVER_MODULE in words:
-            if state_dir is not None and str(state_dir) not in words:
-                continue
-        elif PARSER_MODULE not in words:
+        modules = (SERVER_MODULE, PARSER_MODULE)
+        if not any(
+            words[i : i + 2] == ["-m", module] for module in modules for i in range(len(words))
+        ):
+            continue
+        if state_dir is not None and not any(
+            words[i : i + 2] == ["--state-dir", str(state_dir)] for i in range(len(words))
+        ):
             continue
         result[int(fields[0])] = fields[2]
     return result
@@ -100,7 +104,8 @@ class NativeRuntime:
             and config.get("runtime_api_key_ref") == self.key_reference()
             and isinstance(config.get("tunnel_client_version"), str),
             "runtime_config",
-            "runtime.json is not in the expected format for this state directory. Run `keyhole setup`.",
+            "runtime.json is not in the expected format for this state directory. Run "
+            f"`{self.store.command('setup', client=self.client)}`.",
         )
         return config
 
@@ -110,7 +115,8 @@ class NativeRuntime:
                 key = os.stat("runtime.key", dir_fd=directory, follow_symlinks=False)
             except FileNotFoundError:
                 raise KeyholeError(
-                    "not_configured", "runtime.key is missing. Run `keyhole setup`."
+                    "not_configured",
+                    f"runtime.key is missing. Run `{self.store.command('setup', client=self.client)}`.",
                 ) from None
         require(
             stat.S_ISREG(key.st_mode)
@@ -122,7 +128,7 @@ class NativeRuntime:
         )
 
     def preflight(self) -> dict:
-        """Everything a start needs, checked before any grant is written."""
+        """Check the configuration, credentials and client version before starting."""
         config = self.config()
         self.check_key()
         installed = self.client_version()
@@ -131,7 +137,8 @@ class NativeRuntime:
             installed == accepted,
             "client_version_changed",
             f"tunnel-client {installed} is installed, but {accepted} was accepted during setup. "
-            "Review the upgrade, then run `keyhole setup --accept-client-version`.",
+            "Review the upgrade, then run "
+            f"`{self.store.command('setup', '--accept-client-version', client=self.client)}`.",
         )
         return {
             "client": self.client,
@@ -294,5 +301,6 @@ class NativeRuntime:
         raise KeyholeError(
             "runtime_not_ready",
             "The tunnel runtime did not become ready. Grants are disabled; inspect "
-            f"`tunnel-client runtimes status {ALIAS}`, then `keyhole resume`.",
+            f"`tunnel-client runtimes status {ALIAS}`, then "
+            f"`{self.store.command('resume', client=self.client)}` with the intended workspace name.",
         )

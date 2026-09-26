@@ -14,8 +14,9 @@ Only the latest release is supported.
 Keyhole's job is to make sure that ChatGPT, or anything else talking to the tunnel, can only:
 
 - read files inside folders you opened, minus the exclusion rules;
-- change files inside folders you opened with `rw`, only UTF-8 text, only with the file's current hash, and
-  never Keyhole's own code, its environment, its state, or shell startup files;
+- edit UTF-8 text inside folders you opened with `rw`, and copy, move or delete regular files (including
+  binaries), only with the current file hash; never modify Keyhole's own code, environment, state or shell
+  startup files;
 - never run programs, expand its own access, or reach anything through a public port.
 
 Every path is opened component by component with `O_NOFOLLOW` and checked against the grant's device and
@@ -33,7 +34,7 @@ journaled before it is applied and verified after.
 | A compromised OpenAI account or workspace | Anyone who can use your ChatGPT app can use your folders. The tunnel should be associated only with your own workspace; the runtime key should have Tunnels *Read + Use* only, so a leaked key cannot create or modify tunnels. |
 | Another local program editing the same file | Keyhole checks the file before and after each step and refuses on change, but it does not lock files against other editors. Avoid editing the same file in two places at once. |
 | Loss of metadata | POSIX mode bits, BOM and line endings are preserved; ACLs, extended attributes and the inode are not. |
-| Bugs in third-party parsers | Document parsing runs in a separate process with CPU, memory, time and zip-expansion limits and no network. It is not an OS-level sandbox. |
+| Bugs in third-party parsers | Documents are parsed in a separate process with CPU, wall-clock, input-size and zip-expansion limits. A 2 GiB address-space limit is attempted where the OS supports it; macOS may reject it. The process retains the current user's file and network permissions. Process separation limits failures, but is not an OS sandbox or protection against a compromised parser. |
 | Other users on the same Mac | State files are 0600/0700, but the design assumes one user per state directory. |
 
 ## Data flow and storage
@@ -43,8 +44,8 @@ journaled before it is applied and verified after.
 - What leaves the machine: the tool results ChatGPT asked for (file excerpts, listings, hashes, rendered
   images) and the runtime key, which `tunnel-client` sends to OpenAI to authenticate.
 - What stays: `~/.config/keyhole/` holds `grants.json`, `runtime.json`, `runtime.key`, `changes.sqlite3`
-  (recovery snapshots, private to you) and the profile `tunnel-client` generated. Nothing is written
-  anywhere else. `keyhole` output never contains the key.
+  (recovery snapshots, private to you) and the profile `tunnel-client` generated. The official client also
+  manages its own runtime registry and logs. `keyhole` output never contains the key.
 
 ## Hardening checklist
 

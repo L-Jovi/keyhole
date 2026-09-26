@@ -1,5 +1,5 @@
 [project]
-name = "keyhole"
+name = "keyhole-mcp"
 dynamic = ["version"]
 description = "Let ChatGPT read, and carefully edit, only the local folders you choose - through OpenAI's Secure MCP Tunnel, with no shell and no public port."
 readme = "README.md"
@@ -52,7 +52,11 @@ path = "src/keyhole/__init__.py"
 packages = ["src/keyhole"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "docs", "skills", "README.md", "LICENSE", "CHANGELOG.md"]
+include = [
+    "src", "tests", "docs", "skills", ".codex-plugin", "uv.lock",
+    "README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
+    "CODE_OF_CONDUCT.md", "AGENTS.md",
+]
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.16"]

@@ -25,6 +25,8 @@ INPUT_LIMIT = 1024 * 1024
 # in-flight ones. SQLite's page cap (below) is the hard backstop for the file itself.
 MAX_RECORDS = 1000
 MAX_BYTES = 450 * 1024 * 1024
+# A restore must still be journaled when ordinary history is full. Its retry reuses this row.
+RECOVERY_RESERVE_BYTES = 48 * 1024 * 1024
 PACKAGE_DIR = Path(__file__).resolve().parent
 SHELL_HOOKS = {
     ".zshrc",
@@ -173,34 +175,53 @@ class Journal:
 
     def usage(self) -> dict:
         count, used = self.db.execute(
-            "SELECT count(*), coalesce(sum(length(record)),0) FROM changes"
+            "SELECT count(*), coalesce(sum(length(CAST(record AS BLOB))),0) FROM changes"
         ).fetchone()
-        return {"records": count, "bytes": used, "max_records": MAX_RECORDS, "max_bytes": MAX_BYTES}
+        return {
+            "records": count,
+            "bytes": used,
+            "max_records": MAX_RECORDS,
+            "max_bytes": MAX_BYTES,
+            "recovery_reserve_records": 1,
+            "recovery_reserve_bytes": RECOVERY_RESERVE_BYTES,
+        }
 
-    def make_room(self, incoming: int) -> int:
-        """Evict the oldest completed records until the new one fits; never evict in-flight ones."""
+    def make_room(self, incoming: int, slots: int = 1, *, protected=(), recovery=False) -> int:
+        """Called inside a transaction; pending and explicitly pinned records cannot be evicted."""
         evicted = 0
         while True:
             usage = self.usage()
-            if usage["records"] < MAX_RECORDS and usage["bytes"] + incoming <= MAX_BYTES:
+            count, size = usage["records"] + slots, usage["bytes"] + incoming
+            if count <= MAX_RECORDS and size <= MAX_BYTES:
                 break
+            exclusions = (
+                " AND id NOT IN (" + ",".join("?" for _ in protected) + ")" if protected else ""
+            )
             row = self.db.execute(
-                "SELECT id FROM changes WHERE status IN ('committed','restored') ORDER BY created_at ASC, id ASC LIMIT 1"
+                "SELECT id FROM changes WHERE status IN ('committed','restored')"
+                + exclusions
+                + " ORDER BY created_at ASC, id ASC LIMIT 1",
+                tuple(protected),
             ).fetchone()
+            if (
+                row is None
+                and recovery
+                and count <= MAX_RECORDS + 1
+                and size <= MAX_BYTES + RECOVERY_RESERVE_BYTES
+            ):
+                break
             require(
                 row is not None,
                 "history_full",
-                "Recovery history is full of interrupted operations; inspect `keyhole history` and restore them.",
+                "Recovery history is full. Inspect `keyhole history`; retry an interrupted restore "
+                "with its original request_id, or restore an interrupted change before making new edits.",
             )
             self.db.execute("DELETE FROM changes WHERE id=?", (row[0],))
             evicted += 1
-        if evicted:
-            self.db.commit()
-            self.db.execute("PRAGMA incremental_vacuum")
         return evicted
 
-    def save(self, record, new=False) -> int:
-        """Persist a record; returns how many old records were evicted to make room."""
+    @staticmethod
+    def values(record) -> tuple:
         # With recovery off, contents are kept only while an operation is in flight.
         stored = (
             record
@@ -208,8 +229,7 @@ class Journal:
             else strip_images(record)
         )
         blob = json.dumps(stored, ensure_ascii=False)
-        evicted = self.make_room(len(blob)) if new else 0
-        values = (
+        return (
             record["change_id"],
             record["scope"],
             record["fingerprint"],
@@ -218,9 +238,45 @@ class Journal:
             json.dumps(receipt(record), ensure_ascii=False),
             blob,
         )
-        self.db.execute("INSERT OR REPLACE INTO changes VALUES (?,?,?,?,?,?,?)", values)
-        self.db.commit()
+
+    def save(self, record) -> int:
+        """Account for both inserts and updates; failed reservations roll back their evictions."""
+        values = self.values(record)
+        previous = self.db.execute(
+            "SELECT length(CAST(record AS BLOB)) FROM changes WHERE id=?", (record["change_id"],)
+        ).fetchone()
+        protected = (record["change_id"],) + (
+            (record["restores"],) if record.get("restores") else ()
+        )
+        with self.db:
+            evicted = self.make_room(
+                len(values[-1].encode()) - (previous[0] if previous else 0),
+                slots=int(previous is None),
+                protected=protected,
+                recovery=record["operation"] == "restore",
+            )
+            self.db.execute("INSERT OR REPLACE INTO changes VALUES (?,?,?,?,?,?,?)", values)
         return evicted
+
+    def finish_restore(self, record, original) -> None:
+        """Complete both sides atomically before releasing the temporary recovery allowance."""
+        original["status"] = "restored"
+        with self.db:
+            for item in (original, record):
+                self.db.execute(
+                    "INSERT OR REPLACE INTO changes VALUES (?,?,?,?,?,?,?)", self.values(item)
+                )
+            # The original may now be evicted, but can never be reinserted after eviction.
+            while True:
+                evicted = self.make_room(0, slots=0)
+                record["evicted_records"] = record.get("evicted_records", 0) + evicted
+                if not self.get(record["change_id"]):
+                    break
+                self.db.execute(
+                    "INSERT OR REPLACE INTO changes VALUES (?,?,?,?,?,?,?)", self.values(record)
+                )
+                if not evicted:
+                    break
 
     def pending(self, scope):
         return [
@@ -551,11 +607,13 @@ class Mutations:
                         "Current policy excludes this earlier operation.",
                     )
                     require(
-                        old["status"] != "prepared",
+                        old["status"] != "prepared" or operation == "restore",
                         "operation_incomplete",
                         "This request was interrupted. Inspect list_changes and use restore_change; do not retry with a new ID.",
                     )
-                    return self.bridge.done(receipt(old, True))
+                    if old["status"] != "prepared":
+                        return self.bridge.done(receipt(old, True))
+                resuming = old is not None
                 original = None
                 if operation == "restore":
                     require(
@@ -602,39 +660,50 @@ class Mutations:
                     )
                     check_write_walk(self.bridge, walk)
                     entries.append(Entry(fd, parts[-1], walk))
-                if original and original["status"] == "prepared":
-                    for i, entry in enumerate(entries):
-                        entry.clean_stage(".keyhole-stage-" + original["change_id"] + "-" + str(i))
+                for interrupted in (original, old):
+                    if interrupted and interrupted["status"] == "prepared":
+                        for i, entry in enumerate(entries):
+                            entry.clean_stage(
+                                ".keyhole-stage-" + interrupted["change_id"] + "-" + str(i)
+                            )
                 before = [entry.snapshot() for entry in entries]
                 for pending in journal.pending(scope):
                     require(
-                        pending["change_id"] == args.get("change_id")
-                        or not set(paths).intersection(pending["paths"]),
+                        pending["change_id"] in (args.get("change_id"), change_id)
+                        or not {fold(p) for p in paths}.intersection(
+                            fold(p) for p in pending["paths"]
+                        ),
                         "operation_incomplete",
-                        "An interrupted operation affects this path. Restore that change before making another edit.",
+                        (
+                            "An interrupted restore affects this path. Retry restore_change with "
+                            f"change_id={pending.get('restores')} and request_id={pending['request_id']}."
+                            if pending.get("restores")
+                            else "An interrupted operation affects this path. Restore that change before making another edit."
+                        ),
                     )
                 if operation == "restore":
+                    recovery_source = old if resuming else original
                     for i, current in enumerate(before):
                         require(
                             not (
-                                original["status"] == "prepared"
+                                recovery_source["status"] == "prepared"
                                 and current["kind"] == "directory"
-                                and original["after"][i]["kind"] == "directory"
-                                and not original["after"][i].get("identity")
+                                and recovery_source["after"][i]["kind"] == "directory"
+                                and not recovery_source["after"][i].get("identity")
                             ),
                             "restore_conflict",
                             "An interrupted directory creation has no durable identity; inspect that empty directory locally before resolving history.",
                         )
                         require(
-                            same(current, original["after"][i])
+                            same(current, recovery_source["after"][i])
                             or (
-                                original["status"] == "prepared"
-                                and same(current, original["before"][i])
+                                recovery_source["status"] == "prepared"
+                                and same(current, recovery_source["before"][i])
                             ),
                             "restore_conflict",
                             "A later or external edit exists; recovery will not overwrite it.",
                         )
-                    after = copy.deepcopy(original["before"])
+                    after = copy.deepcopy(old["after"] if resuming else original["before"])
                 else:
                     source_index = 1 if operation == "move" else 0
                     source = before[source_index]
@@ -737,6 +806,10 @@ class Mutations:
                     "before": before,
                     "after": after,
                 }
+                if original:
+                    record["restores"] = original["change_id"]
+                if resuming:
+                    record = old
                 for a, b in zip(before, after, strict=True):
                     if a["kind"] == "file" and not same(a, b):
                         require(
@@ -744,7 +817,8 @@ class Mutations:
                             "file_read_only",
                             "An affected file is not owner-writable; change permissions locally first.",
                         )
-                record["evicted_records"] = journal.save(record, new=True)
+                if not resuming:
+                    record["evicted_records"] = journal.save(record)
                 try:
                     for i, entry in enumerate(entries):
                         self.bridge.authorized()
@@ -759,15 +833,20 @@ class Mutations:
                         )
                     self.bridge.authorized()
                     record["status"] = "committed"
-                    journal.save(record)
                     if original:
-                        original["status"] = "restored"
-                        journal.save(original)
+                        journal.finish_restore(record, original)
+                    else:
+                        journal.save(record)
                     return self.bridge.done(receipt(record))
                 except Exception as exc:
                     raise KeyholeError(
                         "operation_incomplete",
                         "Commit did not finish cleanly. Recovery change_id="
                         + change_id
-                        + "; inspect list_changes before retrying or restoring.",
+                        + (
+                            f"; retry restore_change with change_id={original['change_id']} and "
+                            f"request_id={request_id}."
+                            if original
+                            else "; inspect list_changes before retrying or restoring."
+                        ),
                     ) from exc

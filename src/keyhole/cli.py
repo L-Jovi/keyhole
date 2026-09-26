@@ -10,7 +10,6 @@ from pathlib import Path
 from . import __version__
 from .errors import KeyholeError, require
 
-NEXT_STEP = "keyhole open /path/to/project --access ro"
 UNSUPPORTED_PLATFORM = (
     "Keyhole runs on macOS. Windows is not supported: Keyhole's folder boundary is built on POSIX "
     "file APIs (openat with O_NOFOLLOW) that Windows does not have. Nothing was changed."
@@ -132,18 +131,19 @@ def run_setup(args, parser: argparse.ArgumentParser) -> dict:
 
     store = StateStore(args.state_dir)
     runtime = NativeRuntime(store, args.tunnel_client)
+    resume = store.command("resume", "--all", client=args.tunnel_client)
     version = runtime.client_version()
     if args.accept_client_version:
         require_terminal(parser)
         confirm_untested(version)
         return {
             **configure.accept_client_version(store, version),
-            "next_step": "keyhole resume --all",
+            "next_step": resume,
         }
     if args.rotate_key:
         require_terminal(parser)
         key = getpass.getpass("New runtime API key (hidden): ")
-        return {**configure.rotate_key(store, key), "next_step": "keyhole resume --all"}
+        return {**configure.rotate_key(store, key), "next_step": resume}
     require_terminal(parser)
     confirm_untested(version)
     if sys.platform.startswith("linux"):
@@ -154,7 +154,12 @@ def run_setup(args, parser: argparse.ArgumentParser) -> dict:
     tunnel_id = input("Tunnel id (tunnel_...): ").strip()
     key = getpass.getpass("Runtime API key with Tunnels Read + Use (hidden): ")
     result = configure.save_runtime(args.state_dir, tunnel_id, key, version)
-    return {**result, "next_step": NEXT_STEP}
+    return {
+        **result,
+        "next_step": store.command(
+            "open", "/path/to/project", "--access", "ro", client=args.tunnel_client
+        ),
+    }
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -188,6 +193,8 @@ def main(argv: list[str] | None = None) -> None:
                     result = journal.purge(args.before)
         elif args.action == "status":
             result = manager.status()
+            if not result["configured"]:
+                result["next_step"] = store.command("setup", client=args.tunnel_client)
         else:
             result = manager.select(
                 args.names,

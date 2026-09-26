@@ -89,7 +89,13 @@ def text_range(data: bytes, start: int, limit: int) -> dict:
 
 
 def parse_document(
-    data: bytes, kind: str, options: dict, generation: str, timeout: float = 20
+    data: bytes,
+    kind: str,
+    options: dict,
+    generation: str,
+    timeout: float = 20,
+    *,
+    state_dir: str | None = None,
 ) -> dict:
     require(
         _slots.acquire(blocking=False),
@@ -116,6 +122,8 @@ def parse_document(
                 "--nonce",
                 str(uuid4()),
             ]
+            if state_dir is not None:
+                command.extend(["--state-dir", state_dir])
             env = {
                 "PATH": "/usr/bin:/bin",
                 "LANG": "en_US.UTF-8",

@@ -1,7 +1,8 @@
 """Isolated document parser subprocess: one validated anonymous snapshot in, JSON out.
 
-Runs as ``python -I -m keyhole.parsers`` under CPU, memory and output budgets.
-No URLs, macros or project code are executed.
+Runs as ``python -I -m keyhole.parsers`` under CPU and output budgets, with a
+best-effort address-space limit. Process separation is not an OS sandbox.
+No URLs, macros or project code are intentionally executed.
 """
 
 import argparse
@@ -379,9 +380,12 @@ def main() -> None:
     parser.add_argument("--kind", required=True)
     parser.add_argument("--generation", required=True)
     parser.add_argument("--nonce", required=True)
+    parser.add_argument("--state-dir", help="owning runtime identity; never opened by the parser")
     args = parser.parse_args()
     resource.setrlimit(resource.RLIMIT_CPU, (15, 16))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    # macOS can reject RLIMIT_AS. CPU, wall-clock and input limits still apply;
+    # this process has the user's OS permissions and is not a network/filesystem sandbox.
     with contextlib.suppress(OSError, ValueError):
         resource.setrlimit(resource.RLIMIT_AS, (2 * 1024**3, 2 * 1024**3))
     try:

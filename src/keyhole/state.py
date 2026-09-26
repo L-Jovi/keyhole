@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import re
+import shlex
 import stat
 import subprocess
 import sys
@@ -132,6 +133,14 @@ def validate_state(value: dict) -> None:
 class StateStore:
     def __init__(self, path: Path = DEFAULT_STATE):
         self.path = path
+
+    def command(self, *args: str, client: str | None = None) -> str:
+        parts = ["keyhole"]
+        if self.path != DEFAULT_STATE:
+            parts.extend(["--state-dir", str(self.path)])
+        if client:
+            parts.extend(["--tunnel-client", client])
+        return shlex.join([*parts, *args])
 
     @contextmanager
     def directory(self):

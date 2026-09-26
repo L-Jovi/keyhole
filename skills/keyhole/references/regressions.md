@@ -20,7 +20,8 @@
 | Restore after an external edit | Refused (`restore_conflict`); newer content is never overwritten. |
 | Edit requested from a partial read | Read the remaining ranges or use an exact literal patch; never truncate by inference. |
 | Link swap, hard link, protected path, read-only file | Refused; no edits to Keyhole code, state or shell startup files. |
-| Recovery history fills up | Oldest completed records are evicted automatically; interrupted ones never are. |
+| Recovery history fills up | Oldest completed records are evicted automatically; interrupted ones never are. A restore can use one temporary reserve slot and returns usage to normal limits when it succeeds. |
+| Restore itself is interrupted | Retry its original change id and request id from the error. The same prepared recovery record is resumed; later external edits still cause `restore_conflict`. |
 | Folder opened with `--recovery off` | Committed edits report `recoverable: false`; `restore_change` on them is `recovery_disabled`. |
 
 Executable coverage: `tests/test_bridge.py`, `tests/test_writes.py`, `tests/test_readers.py`,

@@ -41,7 +41,7 @@ with exit status 1; usage errors exit 2.
 | `policy_conflict`, `invalid_pattern` | Exclusion rules differ from the saved ones, or a pattern is malformed. |
 | `native_runtime_failed`, `runtime_timeout`, `runtime_not_ready`, `stop_unconfirmed` | The official client refused, hung, did not become ready, or could not be confirmed stopped. Grants are disabled when a start fails. |
 | `manager_busy`, `state_permissions`, `boot_identity_unavailable` | Another command holds the lock; state files have wrong ownership or mode; the boot id could not be read. |
-| `history_full`, `invalid_cutoff` | Only interrupted records remain in a full history; purge date invalid. |
+| `history_full`, `invalid_cutoff` | Ordinary history is full; restore a pending change or retry the interrupted restore with its same request id. Purge date invalid. |
 | `unsupported_platform` | Not macOS or Linux (for example Windows). Nothing was changed. |
 | `local_failure` | An unexpected OS error; the message contains the exception. |
 
@@ -78,7 +78,7 @@ run at once (`server_busy`), and a response is capped at 64 KiB (`response_budge
 | `copy_file`, `move_file` | `path, destination, expected_sha256, request_id` | destination must be absent, same workspace |
 | `delete_file` | `path, expected_sha256, request_id` | file goes to the recovery history |
 | `list_changes` | `limit=20 (1–100)` | `changes[]` summaries; never file contents |
-| `restore_change` | `change_id, request_id` | refuses if any affected path changed since |
+| `restore_change` | `change_id, request_id` | refuses later external edits; retry an interrupted restore with the same two ids |
 
 `request_id` is 8 to 80 characters of letters, digits, `-` and `_`. Repeating a completed request returns
 the original receipt with `replayed: true`; the same id with different arguments is `request_id_reused`.
@@ -107,7 +107,7 @@ for writes: `read_only`, `invalid_request_id`, `request_id_reused`, `operation_i
 | `write_file` input | 1 MiB |
 | Directory listing | 10 000 entries per directory; 200 per page |
 | Search | 20 000 entries or 32 levels per tree; 2000 files / 24 MiB / 5 s per call |
-| Parser | 20 s wall clock, 15 s CPU, 2 GiB address space, 256 MiB zip expansion, 25 megapixels input, about 2 megapixels / 3 MiB output |
+| Parser | 20 s wall clock, 15 s CPU, 256 MiB zip expansion, 25 megapixels input, about 2 megapixels / 3 MiB output; 2 GiB address space only where the OS accepts that limit |
 | Workspaces | 64 |
-| Recovery history | 1000 records / 450 MiB; oldest completed evicted first |
+| Recovery history | 1000 records / 450 MiB; oldest completed evicted first. A restore can temporarily reserve one extra record and 48 MiB until it completes. |
 | Concurrency | 2 tool calls; 2 parsers |

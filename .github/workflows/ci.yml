@@ -34,5 +34,43 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
       - run: uv run keyhole --help
-      - run: uv build --wheel
-      - run: uvx --from ./dist/keyhole-*.whl keyhole --version
+
+  artifacts:
+    name: Installed wheel and source archive
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv build
+      - name: Test wheel outside the source checkout
+        run: |
+          uv venv "$RUNNER_TEMP/wheel-env"
+          uv pip install --python "$RUNNER_TEMP/wheel-env/bin/python" dist/keyhole_mcp-*.whl pytest
+          mkdir "$RUNNER_TEMP/wheel-tests"
+          cp -R tests .codex-plugin "$RUNNER_TEMP/wheel-tests/"
+          cd "$RUNNER_TEMP/wheel-tests"
+          "$RUNNER_TEMP/wheel-env/bin/keyhole" --version
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pytest -q
+      - name: Test the source archive with only its own contents
+        run: |
+          mkdir "$RUNNER_TEMP/sdist-tests"
+          tar -xzf dist/keyhole_mcp-*.tar.gz -C "$RUNNER_TEMP/sdist-tests"
+          cd "$RUNNER_TEMP"/sdist-tests/keyhole_mcp-*
+          uv sync --locked --group dev
+          uv run pytest -q
+
+  windows-cli:
+    name: Windows unsupported-platform message
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - run: uv run keyhole --help
+      - run: uv run keyhole --version
+      - name: Reject unsupported commands without a traceback
+        run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
