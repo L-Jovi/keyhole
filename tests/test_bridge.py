@@ -286,7 +286,10 @@ class BridgeTests(FixtureCase):
         self.refused("policy_conflict", lambda: self.manager.open(self.b, exclusions=["Other"]))
 
     def test_roots_are_stored_canonically_and_control_paths_are_protected(self):
-        self.refused("protected_root", lambda: self.manager.open(Path("/System/Volumes/Data")))
+        system_data = Path("/System/Volumes/Data")
+        expected = "protected_root" if system_data.exists() else "path_missing"
+        self.refused(expected, lambda: self.manager.open(system_data))
+        self.refused("path_missing", lambda: self.manager.open(self.base / "does-not-exist"))
         self.refused("protected_root", lambda: self.manager.open(self.state))
         self.refused("protected_root", lambda: self.manager.open(self.base))
         spellings = [Path("/System/Volumes/Data" + str(self.b)), Path(str(self.b).swapcase())]

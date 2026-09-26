@@ -8,6 +8,12 @@ a **Refresh**.
 
 ## [Unreleased]
 
+### Fixed
+
+- `keyhole open` on a directory that does not exist reported `not_configured` instead of
+  `path_missing`, because the state-directory check also caught errors raised while the state
+  directory was open. Found by the experimental Linux CI job.
+
 ### Changed
 
 - Docs: `tmux` is optional (tunnel-client falls back to a detached process without it); Python is

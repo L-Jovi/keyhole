@@ -7,6 +7,7 @@ import os
 import re
 import stat
 import subprocess
+import sys
 import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -134,19 +135,28 @@ class StateStore:
 
     @contextmanager
     def directory(self):
+        # Only a missing state directory means "not configured"; errors raised by the caller's
+        # block (for example a missing directory it tries to share) must keep their own code.
         try:
-            with absolute_directory(self.path) as (fd, walk):
-                st = os.fstat(fd)
-                require(
-                    st.st_uid == os.getuid() and stat.S_IMODE(st.st_mode) == 0o700,
-                    "state_permissions",
-                    "Private state must be owned by the current user with mode 0700.",
-                )
-                yield fd
+            opened = absolute_directory(self.path)
+            fd, _walk = opened.__enter__()
         except KeyholeError as exc:
             if exc.code == "path_missing":
                 raise KeyholeError("not_configured", SETUP_HINT) from exc
             raise
+        try:
+            st = os.fstat(fd)
+            require(
+                st.st_uid == os.getuid() and stat.S_IMODE(st.st_mode) == 0o700,
+                "state_permissions",
+                "Private state must be owned by the current user with mode 0700.",
+            )
+            yield fd
+        except BaseException:
+            if not opened.__exit__(*sys.exc_info()):
+                raise
+        else:
+            opened.__exit__(None, None, None)
 
     def read(self, name: str = "grants.json", *, missing: bool = False) -> dict:
         with self.directory() as directory:
