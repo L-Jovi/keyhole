@@ -29,8 +29,6 @@ keyhole setup
 ```
 
 No Python installation is needed: `uv` downloads a private interpreter for Keyhole when none is available.
-`tmux` is optional; `tunnel-client` prefers it for the background runtime and falls back to a detached process
-without it (Keyhole was tested with `tmux` present, so `brew install tmux` is the safe choice).
 
 Without Homebrew: install [uv](https://docs.astral.sh/uv/getting-started/installation/) and a
 `tunnel-client` build from the [releases page](https://github.com/openai/tunnel-client/releases) (verify the
@@ -40,7 +38,6 @@ published checksum), then pass its location with `keyhole --tunnel-client /path/
 
 - checks that `tunnel-client` runs and reports a version this release was tested with (currently 0.0.14).
   A newer version is accepted only when you type its number back;
-- notes when `tmux` is missing (`tunnel-client` then runs the tunnel as a detached process, a setup Keyhole has not been tested with);
 - asks for the tunnel id, then for the key with hidden input;
 - writes `~/.config/keyhole/runtime.json` (tunnel id, a *reference* to the key file, accepted client
   version) and `~/.config/keyhole/runtime.key` (the key, mode 0600). The key is never printed, logged, or
@@ -48,6 +45,9 @@ published checksum), then pass its location with `keyhole --tunnel-client /path/
 
 Use `keyhole --state-dir /path setup` to keep the state somewhere else; then pass the same `--state-dir` to
 every later command. The path must not contain symbolic links.
+
+`tunnel-client` keeps the tunnel in a `tmux` session when `tmux` is installed and in a detached background
+process otherwise; Keyhole has been tested with `tmux` present.
 
 ## 3. Open a folder
 

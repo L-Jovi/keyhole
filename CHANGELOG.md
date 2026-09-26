@@ -16,8 +16,8 @@ a **Refresh**.
 
 ### Changed
 
-- Docs: `tmux` is optional (tunnel-client falls back to a detached process without it); Python is
-  downloaded by `uv`, no separate install. `keyhole setup` phrases the missing-tmux note accordingly.
+- Docs: the install section lists what is actually required (Homebrew, `uv`, `tunnel-client`); Python is
+  downloaded by `uv`, and `tmux` is not a requirement. `keyhole setup` only notes when `tmux` is absent.
 
 ## [0.3.0] - 2026-09-26
 

@@ -28,8 +28,8 @@ Unofficial project; not affiliated with OpenAI.
 ## What you need
 
 - macOS on Apple silicon or Intel. Linux is untested; Windows is not supported.
-- [Homebrew](https://brew.sh) to install the two tools below. You do not need Python: `uv` downloads a private
-  copy for Keyhole.
+- [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no
+  Node, no Docker.
 - A ChatGPT account with **Developer mode** (Plus, Pro, Business, Enterprise and Edu on the web; on a team
   workspace an admin may have to enable it).
 - An OpenAI Platform organization where you can create a **tunnel** and a **restricted API key**.
@@ -57,12 +57,8 @@ brew install uv openai/tools/tunnel-client
 uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
 ```
 
-`uv` downloads a private Python for Keyhole if your Mac has none, installs Keyhole into its own isolated
-environment, and links `keyhole` into `~/.local/bin`. It prints a warning if that directory is not on your
-`PATH`; nothing else on your system is changed.
-
-Optional: `brew install tmux`. When `tmux` is present, `tunnel-client` runs the tunnel inside a tmux session;
-without it, it runs a detached background process instead. Keyhole was tested with `tmux` installed.
+That is all. `uv` brings its own Python, keeps Keyhole in an isolated environment, and links `keyhole` into
+`~/.local/bin` (it tells you if that directory is not on your `PATH`). Nothing else on your system changes.
 
 Then, once:
 
