@@ -62,3 +62,44 @@ prompt hides the new key.
 3. Run `uv tool uninstall keyhole` for 0.3.1, or `uv tool uninstall keyhole-mcp` for the renamed distribution.
 4. Optional: remove your state directory only if you also want to permanently discard saved grants and
    recovery history. Removing the package alone preserves that data and never deletes shared source files.
+
+## Directory evaluation (maintainers)
+
+The [Glama listing](https://glama.ai/mcp/servers/L-Jovi/keyhole) evaluates the real stdio server against
+one disposable, read-only `Demo` workspace. It contains only a generated `WELCOME.txt`; no Mac folders,
+OpenAI credentials or tunnel are connected. Each start creates fresh private state using the current
+boot identity and directory identity. The normal CLI still starts with no grants.
+
+`glama.json` names the listing maintainer. The container recipe and bootstrap live in `contrib/glama/`,
+outside the installed Python package. From a source checkout with Docker available:
+
+```sh
+uv sync --locked --group dev
+docker build -f contrib/glama/Dockerfile -t keyhole-glama-test .
+uv run python contrib/glama/smoke_test.py --image keyhole-glama-test
+```
+
+The smoke test uses a non-root image with networking disabled, a read-only root filesystem and temporary
+storage. It checks all 12 tool definitions against the production snapshot, introspection, a real read,
+read-only write rejection and path-boundary rejection in both current and legacy MCP modes. Without
+`--image`, it tests the same bootstrap locally and checks temporary-state cleanup.
+
+Glama generates its own Dockerfile in **Admin → Dockerfile**. Select Python 3.12, use the following build
+steps, and keep the environment schema empty (no required parameters):
+
+```json
+["UV_PYTHON_INSTALL_DIR=/opt/glama-python uv sync --locked --no-dev --no-editable --managed-python --python 3.12", "useradd --create-home --uid 10001 keyhole"]
+```
+
+The explicit Python install directory keeps the interpreter accessible to the unprivileged server user.
+Set CMD arguments to:
+
+```json
+["mcp-proxy", "--", "runuser", "-u", "keyhole", "--", "/app/.venv/bin/python", "-I", "/app/contrib/glama/bootstrap.py"]
+```
+
+Sync the repository and pin the reviewed commit in Glama before building. Inspect the successful build's
+captured tools before creating a Glama release or adding its score badge to a directory submission.
+Glama's generated proxy is part of its evaluation environment; it is not used by Keyhole's normal setup.
+Keep the listing description explicit that this is a synthetic demo. Container success does not verify
+the macOS tunnel workflow or expand the supported OS table. Users should follow [setup](setup.md).
