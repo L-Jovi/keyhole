@@ -1,6 +1,6 @@
 {
   "name": "keyhole",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Manage the local directory grants behind your private ChatGPT app: read-only by default, explicit rw for version-checked, recoverable text edits.",
   "author": {
     "name": "Jovi"

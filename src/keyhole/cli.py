@@ -3,18 +3,28 @@
 import argparse
 import getpass
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, configure
+from . import __version__
 from .errors import KeyholeError, require
-from .management import Manager
-from .runtime import TESTED_CLIENT_VERSIONS, NativeRuntime
-from .state import DEFAULT_STATE, StateStore
 
 NEXT_STEP = "keyhole open /path/to/project --access ro"
+UNSUPPORTED_PLATFORM = (
+    "Keyhole runs on macOS. Windows is not supported: Keyhole's folder boundary is built on POSIX "
+    "file APIs (openat with O_NOFOLLOW) that Windows does not have. Nothing was changed."
+)
+
+
+def platform_problem() -> str | None:
+    return UNSUPPORTED_PLATFORM if sys.platform in ("win32", "cygwin") else None
+
+
+def fail(code: str, message: str) -> None:
+    error = {"ok": False, "error": {"code": code, "message": message}}
+    print(json.dumps(error, ensure_ascii=False, indent=2))
+    raise SystemExit(1)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--state-dir",
         type=Path,
-        default=DEFAULT_STATE,
-        help="private state directory (default: %(default)s)",
+        default=None,
+        help="private state directory (default: ~/.config/keyhole)",
     )
     parser.add_argument(
         "--tunnel-client",
@@ -102,6 +112,8 @@ def require_terminal(parser: argparse.ArgumentParser) -> None:
 
 
 def confirm_untested(version: str) -> None:
+    from .runtime import TESTED_CLIENT_VERSIONS
+
     if version in TESTED_CLIENT_VERSIONS:
         return
     print(
@@ -114,6 +126,10 @@ def confirm_untested(version: str) -> None:
 
 
 def run_setup(args, parser: argparse.ArgumentParser) -> dict:
+    from . import configure
+    from .runtime import NativeRuntime
+    from .state import StateStore
+
     store = StateStore(args.state_dir)
     runtime = NativeRuntime(store, args.tunnel_client)
     version = runtime.client_version()
@@ -130,21 +146,29 @@ def run_setup(args, parser: argparse.ArgumentParser) -> dict:
         return {**configure.rotate_key(store, key), "next_step": "keyhole resume --all"}
     require_terminal(parser)
     confirm_untested(version)
-    tmux = shutil.which("tmux")
-    if not tmux:
+    if sys.platform.startswith("linux"):
         print(
-            "note: tmux not found; tunnel-client will keep the tunnel in a detached background process.",
+            "note: Keyhole is tested on macOS; on Linux only the unit tests run, the full flow is untested.",
             file=sys.stderr,
         )
     tunnel_id = input("Tunnel id (tunnel_...): ").strip()
     key = getpass.getpass("Runtime API key with Tunnels Read + Use (hidden): ")
     result = configure.save_runtime(args.state_dir, tunnel_id, key, version)
-    return {**result, "tmux": tmux, "next_step": NEXT_STEP}
+    return {**result, "next_step": NEXT_STEP}
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
+    problem = platform_problem()
+    if problem:
+        fail("unsupported_platform", problem)
+    # Imported after the platform check: these modules use POSIX-only APIs at import time.
+    from .management import Manager
+    from .runtime import NativeRuntime
+    from .state import DEFAULT_STATE, StateStore
+
+    args.state_dir = args.state_dir or DEFAULT_STATE
     store = StateStore(args.state_dir)
     manager = Manager(store, NativeRuntime(store, args.tunnel_client))
     try:
@@ -173,18 +197,9 @@ def main(argv: list[str] | None = None) -> None:
             )
         print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
     except KeyholeError as exc:
-        print(
-            json.dumps(
-                {"ok": False, "error": {"code": exc.code, "message": exc.message}},
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        raise SystemExit(1) from None
+        fail(exc.code, exc.message)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        error = {"code": "local_failure", "message": f"{type(exc).__name__}: {exc}"}
-        print(json.dumps({"ok": False, "error": error}, ensure_ascii=False, indent=2))
-        raise SystemExit(1) from None
+        fail("local_failure", f"{type(exc).__name__}: {exc}")
 
 
 if __name__ == "__main__":

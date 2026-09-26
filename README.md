@@ -32,10 +32,10 @@ Everything Keyhole needs, and exactly what has been verified (as of 2026-09-26).
 
 | | Needed | Verified |
 | --- | --- | --- |
-| Computer | A Mac | macOS 15.6 on Apple silicon. Intel Macs and older macOS: not tested. Linux: unit tests only, the real flow is not tested. Windows: not supported. |
-| Tools | [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no Node, no Docker. | The Homebrew path, and the no-Homebrew path (uv's installer plus the `tunnel-client` release zip). |
-| Python | None to install. `uv` downloads one for Keyhole; 3.11 or newer works. | 3.11, 3.12, 3.13 and 3.14 in CI; a machine without Python received 3.14. |
-| `tunnel-client` | Any version you accept in `keyhole setup` | 0.0.14. 0.0.15 is not tested yet. Tested with `tmux` installed; `tunnel-client` uses it when present and does not need it. |
+| Computer | A Mac | macOS 15.6 on Apple silicon. Intel Macs and older macOS: not tested. Linux: unit tests only, the real flow is not tested. Windows: not supported; `keyhole` says so and exits. |
+| Tools | [Homebrew](https://brew.sh), to install `uv` and OpenAI's `tunnel-client`. Nothing else: no Python, no Git or Xcode command line tools, no tmux, no Node, no Docker. | The Homebrew path, and the no-Homebrew path on a Mac without Xcode command line tools (simulated). |
+| Python | None to install. `uv` downloads one for Keyhole; 3.11 or newer works. | 3.11, 3.12, 3.13 and 3.14 in CI; a Mac without Python received 3.14. |
+| `tunnel-client` | Any version you accept in `keyhole setup` | 0.0.14, with and without `tmux` installed. 0.0.15 is not tested yet. |
 | ChatGPT | An account with **Developer mode** | A Pro account, ChatGPT on the web, Chat mode. OpenAI also lists Plus, Business, Enterprise and Edu; on a team workspace an admin may have to enable Developer mode. Not tested here. |
 | OpenAI Platform | An organization where you can create a **tunnel** and a **restricted API key** | One personal organization. |
 | Time | About 15 minutes once; afterwards one command to open a folder | |
@@ -59,7 +59,7 @@ you opened, and refuses anything else.
 
 ```sh
 brew install uv openai/tools/tunnel-client
-uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
+uv tool install https://github.com/L-Jovi/keyhole/releases/download/v0.3.1/keyhole-0.3.1-py3-none-any.whl
 ```
 
 That is all. `uv` brings its own Python, keeps Keyhole in an isolated environment, and links `keyhole` into

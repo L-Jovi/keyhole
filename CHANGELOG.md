@@ -8,6 +8,16 @@ a **Refresh**.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-26
+
+The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
+
+### Added
+
+- On Windows, every `keyhole` command prints one `unsupported_platform` error instead of a Python
+  traceback. `keyhole setup` on Linux says that only the unit tests run there.
+- Each release ships a wheel; installing from it needs no Git or Xcode command line tools.
+
 ### Fixed
 
 - `keyhole setup` now checks the tunnel id format the way `tunnel-client` does (`tunnel_` plus 32
@@ -19,8 +29,10 @@ a **Refresh**.
 ### Changed
 
 - Python 3.14 is tested in CI; `uv tool install` picks it on a machine without Python.
-- Docs: the install section lists what is actually required (Homebrew, `uv`, `tunnel-client`); Python is
-  downloaded by `uv`, and `tmux` is not a requirement. `keyhole setup` only notes when `tmux` is absent.
+- The install commands use the release wheel instead of a Git URL, which failed on Macs without Xcode
+  command line tools.
+- `tmux` is not mentioned by `keyhole` any more: the tunnel runs in a detached process without it, and that
+  path was verified end to end (including after closing the terminal). `keyhole status` no longer lists it.
 - Docs: a requirements table states exactly what was verified (macOS 15.6 on Apple silicon, Python
   3.11–3.14, `tunnel-client` 0.0.14, a Pro account in Chat mode) and what was not (Intel Macs, older macOS,
   Linux end to end, other ChatGPT plans, `tunnel-client` 0.0.15); the no-Homebrew install path is spelled
@@ -76,5 +88,6 @@ definitions are unchanged from 0.2.0; an existing app does not need a refresh.
 - Read-only local folders for ChatGPT over OpenAI's Secure MCP Tunnel: `list_workspaces`, `list_directory`,
   `search_files`, `read_file` for text, PDF, DOCX, PPTX, XLSX and images.
 
-[Unreleased]: https://github.com/L-Jovi/keyhole/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/L-Jovi/keyhole/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/L-Jovi/keyhole/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/L-Jovi/keyhole/releases/tag/v0.3.0

@@ -34,8 +34,10 @@ normal terminal rather than a restricted sandbox.
 ## Releasing (maintainer)
 
 1. Update `CHANGELOG.md` and the version in `src/keyhole/__init__.py` and `.codex-plugin/plugin.json`.
-2. `uv lock`, run the full suite from a terminal, run one real ChatGPT check (read, edit, restore, close).
-3. Tag `vX.Y.Z` and publish a GitHub release with the changelog section.
+2. Point the install commands in `README.md` and `docs/setup.md` at the new wheel URL.
+3. `uv lock`, run the full suite from a terminal, run one real ChatGPT check (read, edit, restore, close).
+4. `uv build --wheel`, tag `vX.Y.Z`, and publish a GitHub release with the changelog section and
+   `dist/keyhole-X.Y.Z-py3-none-any.whl` attached. Installing from the wheel needs no Git on the user's Mac.
 
 ## GitHub repository settings (maintainer)
 

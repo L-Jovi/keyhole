@@ -142,7 +142,7 @@ class NativeRuntime:
 
     def checks(self) -> dict:
         """Diagnostics for `keyhole status`; never raises."""
-        result: dict = {"tunnel_client": self.client, "tmux": shutil.which("tmux")}
+        result: dict = {"tunnel_client": self.client}
         try:
             result["client_version"] = self.client_version()
             result["client_version_tested"] = result["client_version"] in TESTED_CLIENT_VERSIONS

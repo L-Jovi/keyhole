@@ -28,17 +28,17 @@ needs the restricted key.
 
 ```sh
 brew install uv openai/tools/tunnel-client
-uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
+uv tool install https://github.com/L-Jovi/keyhole/releases/download/v0.3.1/keyhole-0.3.1-py3-none-any.whl
 keyhole setup
 ```
 
 No Python installation is needed: `uv` downloads a private interpreter for Keyhole when none is available.
 
-Without Homebrew (verified on a machine with nothing installed):
+Without Homebrew (verified on a Mac with nothing installed, not even Xcode command line tools):
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # installs uv into ~/.local/bin
-uv tool install "keyhole @ git+https://github.com/L-Jovi/keyhole@v0.3.0"
+uv tool install https://github.com/L-Jovi/keyhole/releases/download/v0.3.1/keyhole-0.3.1-py3-none-any.whl
 ```
 
 Then download `tunnel-client-v0.0.14-darwin-arm64.zip` (Intel: `-darwin-amd64.zip`) and `SHA256SUMS.txt`
@@ -64,9 +64,6 @@ directory is not on your `PATH`.
 
 Use `keyhole --state-dir /path setup` to keep the state somewhere else; then pass the same `--state-dir` to
 every later command. The path must not contain symbolic links.
-
-`tunnel-client` keeps the tunnel in a `tmux` session when `tmux` is installed and in a detached background
-process otherwise; Keyhole has been tested with `tmux` present.
 
 ## 3. Open a folder
 
@@ -118,8 +115,9 @@ a change that `keyhole history` does not show, the change did not happen.
   not accepted yet; the next `keyhole open` refuses with `client_version_changed`. Read the client's release
   notes, then run `keyhole setup --accept-client-version` and `keyhole resume --all`. Revoking access
   (`keyhole close`) always works, whatever the installed version.
-- **Upgrading Keyhole.** Reinstall with the new tag:
-  `uv tool install --reinstall "keyhole @ git+https://github.com/L-Jovi/keyhole@vX.Y.Z"`. When the changelog says
+- **Upgrading Keyhole.** Reinstall from the new release's wheel, for example
+  `uv tool install --reinstall https://github.com/L-Jovi/keyhole/releases/download/vX.Y.Z/keyhole-X.Y.Z-py3-none-any.whl`
+  (the exact link is in the release notes). When the changelog says
   the tool definitions changed, open the app's details in ChatGPT and press **Refresh**, then start a new
   chat. Opening new folders never needs a refresh.
 - **Rotating the key.** Create a new restricted key on OpenAI Platform, run `keyhole setup --rotate-key`,

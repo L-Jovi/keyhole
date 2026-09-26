@@ -42,6 +42,7 @@ with exit status 1; usage errors exit 2.
 | `native_runtime_failed`, `runtime_timeout`, `runtime_not_ready`, `stop_unconfirmed` | The official client refused, hung, did not become ready, or could not be confirmed stopped. Grants are disabled when a start fails. |
 | `manager_busy`, `state_permissions`, `boot_identity_unavailable` | Another command holds the lock; state files have wrong ownership or mode; the boot id could not be read. |
 | `history_full`, `invalid_cutoff` | Only interrupted records remain in a full history; purge date invalid. |
+| `unsupported_platform` | Not macOS or Linux (for example Windows). Nothing was changed. |
 | `local_failure` | An unexpected OS error; the message contains the exception. |
 
 ## State directory

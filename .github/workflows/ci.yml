@@ -34,3 +34,5 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
       - run: uv run keyhole --help
+      - run: uv build --wheel
+      - run: uvx --from ./dist/keyhole-*.whl keyhole --version
