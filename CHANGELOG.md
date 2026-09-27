@@ -10,6 +10,23 @@ a **Refresh**.
 
 ### Added
 
+- Resumable terminal setup with optional SHA-256-verified official client installation, saved client
+  paths, explicit read-only sample creation, and `--no-browser` / `--update-client` options.
+- `status --human` for next steps and `status --redact` for allowlisted issue reports.
+- Required Ubuntu 22.04/24.04 Python 3.11–3.14 checks, wheel/sdist/tool-install tests, real official-client
+  download checks and a separate non-admin Windows feasibility probe. These do not expand platform support.
+- A manually gated Trusted Publishing workflow and maintainer instructions; no PyPI publication is implied.
+- Related-project comparison and explicit platform acceptance criteria.
+
+### Fixed
+
+- Setup can continue a missing key or configuration without deleting grants/history, and key rotation
+  does not require a runnable tunnel client. Saved client paths do not silently fall back to PATH.
+- Native client failure bodies are withheld from CLI output to avoid echoing secrets or private paths.
+  Linux permission errors no longer suggest macOS settings.
+
+### Existing unreleased additions
+
 - Glama maintainer metadata and a disposable, read-only evaluation container using the existing stdio
   server. CI checks the real tool schemas, synthetic reads and permission boundaries in Linux Docker.
   This is a directory evaluation fixture, not a new installation method or Linux support claim.

@@ -25,8 +25,8 @@ VERSION = re.compile(r"^\s*v?(\d+\.\d+\.\d+)")
 SERVER_MODULE = "keyhole.server"
 PARSER_MODULE = "keyhole.parsers"
 INSTALL_HINT = (
-    "Install the official tunnel-client (https://github.com/openai/tunnel-client) and put it on "
-    "PATH, or pass --tunnel-client /path/to/tunnel-client."
+    "Run `keyhole setup` to install the official tunnel-client, or pass "
+    "--tunnel-client /absolute/path/to/tunnel-client. A missing saved path is never replaced by PATH."
 )
 
 
@@ -71,7 +71,32 @@ def owned_processes(state_dir: Path | None = None) -> dict[int, str]:
 class NativeRuntime:
     def __init__(self, store: StateStore, client: str | None = None):
         self.store = store
-        self.client = str(Path(client).expanduser()) if client else shutil.which("tunnel-client")
+        self.explicit_client = client
+
+    @property
+    def client(self) -> str | None:
+        if self.explicit_client:
+            return str(Path(self.explicit_client).expanduser().absolute())
+        try:
+            config = self.store.read("runtime.json")
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise KeyholeError(
+                "runtime_config", "runtime.json is not valid UTF-8 JSON. Keep it for local review."
+            ) from exc
+        except KeyholeError as exc:
+            if exc.code != "not_configured":
+                raise
+        else:
+            require(isinstance(config, dict), "runtime_config", "Invalid runtime configuration.")
+            if "tunnel_client_path" in config:
+                path = config["tunnel_client_path"]
+                require(
+                    isinstance(path, str) and Path(path).is_absolute(),
+                    "runtime_config",
+                    "Invalid saved tunnel-client path. Rerun setup.",
+                )
+                return path
+        return shutil.which("tunnel-client")
 
     # Local checks -----------------------------------------------------------------
 
@@ -83,24 +108,35 @@ class NativeRuntime:
             bool(self.client) and Path(self.client).is_file(), "native_client_missing", INSTALL_HINT
         )
         try:
-            output = subprocess.check_output([self.client, "--version"], text=True, timeout=15)
+            output = subprocess.check_output(
+                [self.client, "--version"], text=True, stderr=subprocess.PIPE, timeout=15
+            )
         except (OSError, subprocess.SubprocessError) as exc:
             raise KeyholeError(
-                "native_client_failed", f"`{self.client} --version` failed: {exc}"
+                "native_client_failed",
+                "The selected tunnel-client could not run --version. "
+                "Check the executable path, permissions and OS/architecture, then rerun setup.",
             ) from exc
         version = parse_version(output)
         require(
             version is not None,
             "native_client_failed",
-            f"Unrecognized tunnel-client version output: {output.strip()[:80]!r}",
+            "Unrecognized tunnel-client version output. Select an official tunnel-client executable.",
         )
         return version
 
     def config(self) -> dict:
-        config = self.store.read("runtime.json")
+        try:
+            config = self.store.read("runtime.json")
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise KeyholeError(
+                "runtime_config", "runtime.json is not valid UTF-8 JSON. Keep it for local review."
+            ) from exc
         require(
-            config.get("schema_version") == 1
-            and TUNNEL_ID.fullmatch(config.get("tunnel_id", "")) is not None
+            isinstance(config, dict)
+            and config.get("schema_version") == 1
+            and isinstance(config.get("tunnel_id"), str)
+            and TUNNEL_ID.fullmatch(config["tunnel_id"]) is not None
             and config.get("runtime_api_key_ref") == self.key_reference()
             and isinstance(config.get("tunnel_client_version"), str),
             "runtime_config",
@@ -149,8 +185,9 @@ class NativeRuntime:
 
     def checks(self) -> dict:
         """Diagnostics for `keyhole status`; never raises."""
-        result: dict = {"tunnel_client": self.client}
+        result: dict = {}
         try:
+            result["tunnel_client"] = self.client
             result["client_version"] = self.client_version()
             result["client_version_tested"] = result["client_version"] in TESTED_CLIENT_VERSIONS
         except KeyholeError as exc:
@@ -173,6 +210,7 @@ class NativeRuntime:
 
     def invoke(self, *args: str) -> dict:
         require(bool(self.client), "native_client_missing", INSTALL_HINT)
+        inspect = shlex.join([self.client, "runtimes", "status", ALIAS])
         try:
             result = subprocess.run(
                 [self.client, "runtimes", *args, "--json"],
@@ -185,14 +223,17 @@ class NativeRuntime:
             raise KeyholeError(
                 "runtime_timeout",
                 f"`tunnel-client runtimes {args[0]}` exceeded 45 seconds. Inspect with "
-                f"`tunnel-client runtimes status {ALIAS}` before retrying.",
+                f"`{inspect}` before retrying.",
             ) from exc
+        except OSError as exc:
+            raise KeyholeError("native_client_failed", INSTALL_HINT) from exc
         require(
             result.returncode == 0,
             "native_runtime_failed",
-            f"`tunnel-client runtimes {args[0]}` failed (exit {result.returncode}): "
-            f"{(result.stderr or result.stdout).strip()[-400:]}. Inspect with "
-            f"`tunnel-client runtimes status {ALIAS}`.",
+            f"`tunnel-client runtimes {args[0]}` failed (exit {result.returncode}). Inspect locally with "
+            f"`{inspect}`. Check network access, tunnel/workspace association "
+            "and Tunnels Read + Use permission; this error alone does not identify which one failed. "
+            "Native output is withheld because it may contain credentials or private paths.",
         )
         try:
             return json.loads(result.stdout)
@@ -301,6 +342,6 @@ class NativeRuntime:
         raise KeyholeError(
             "runtime_not_ready",
             "The tunnel runtime did not become ready. Grants are disabled; inspect "
-            f"`tunnel-client runtimes status {ALIAS}`, then "
+            f"`{shlex.join([self.client, 'runtimes', 'status', ALIAS])}`, then "
             f"`{self.store.command('resume', client=self.client)}` with the intended workspace name.",
         )

@@ -12,18 +12,11 @@ jobs:
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-15, ubuntu-22.04, ubuntu-24.04]
         python: ["3.11", "3.12", "3.13", "3.14"]
-        experimental: [false]
-        include:
-          # Linux is not a supported platform yet; unit tests run to keep the door open.
-          - os: ubuntu-latest
-            python: "3.12"
-            experimental: true
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -36,34 +29,27 @@ jobs:
       - run: uv run keyhole --help
 
   artifacts:
-    name: Installed wheel and source archive
-    runs-on: macos-latest
+    name: Artifacts / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-22.04, ubuntu-24.04]
+        python: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - run: uv build
-      - name: Test wheel outside the source checkout
-        run: |
-          uv venv "$RUNNER_TEMP/wheel-env"
-          uv pip install --python "$RUNNER_TEMP/wheel-env/bin/python" dist/keyhole_mcp-*.whl pytest
-          mkdir "$RUNNER_TEMP/wheel-tests"
-          cp -R tests .codex-plugin "$RUNNER_TEMP/wheel-tests/"
-          cd "$RUNNER_TEMP/wheel-tests"
-          "$RUNNER_TEMP/wheel-env/bin/keyhole" --version
-          "$RUNNER_TEMP/wheel-env/bin/python" -m pytest -q
-      - name: Test the source archive with only its own contents
-        run: |
-          mkdir "$RUNNER_TEMP/sdist-tests"
-          tar -xzf dist/keyhole_mcp-*.tar.gz -C "$RUNNER_TEMP/sdist-tests"
-          cd "$RUNNER_TEMP"/sdist-tests/keyhole_mcp-*
-          uv sync --locked --group dev
-          uv run pytest -q
+      - name: Test both artifacts and a fresh tool PATH
+        run: uv run --no-project python contrib/ci/check_artifacts.py
+      - name: Download and run the pinned official client without credentials
+        run: uv run python contrib/ci/check_client_install.py
 
   glama-demo:
     name: Glama evaluation container
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -75,7 +61,7 @@ jobs:
 
   windows-cli:
     name: Windows unsupported-platform message
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -86,3 +72,21 @@ jobs:
       - run: uv run keyhole --version
       - name: Reject unsupported commands without a traceback
         run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
+
+  windows-feasibility:
+    name: Windows NTFS primitives (not platform support)
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run the standalone probe as a standard user
+        shell: pwsh
+        run: ./contrib/windows/run-standard-user.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-feasibility
+          path: ${{ runner.temp }}/keyhole-windows/report.json
+          if-no-files-found: warn

@@ -1,0 +1,10 @@
+{
+  "version": "0.0.14",
+  "release_url": "https://github.com/openai/tunnel-client/releases/tag/v0.0.14",
+  "assets": {
+    "darwin-arm64": {"size": 26771198, "sha256": "b540493c5bdbcdbb755700c8e2e16597e28b1569e425007e0f73111047bd6a64"},
+    "darwin-amd64": {"size": 28589343, "sha256": "75e10be774184fb42189e347b16eb6bc9fb0780135d8af714d34e30ce068dc53"},
+    "linux-amd64": {"size": 27753708, "sha256": "15bd17e805cad39d412199115bb9e10a978dd35258a114cdf25dd2ae6681c7d3"},
+    "linux-arm64": {"size": 25350146, "sha256": "2de3fb879a18edb847e0313592c912f1983685488290a7fdba7ac403e6a4fb0a"}
+  }
+}

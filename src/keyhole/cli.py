@@ -1,14 +1,13 @@
 """keyhole: manage local directory grants and the official tunnel runtime from your own terminal."""
 
 import argparse
-import getpass
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 from . import __version__
-from .errors import KeyholeError, require
+from .errors import KeyholeError
 
 UNSUPPORTED_PLATFORM = (
     "Keyhole runs on macOS. Windows is not supported: Keyhole's folder boundary is built on POSIX "
@@ -17,7 +16,11 @@ UNSUPPORTED_PLATFORM = (
 
 
 def platform_problem() -> str | None:
-    return UNSUPPORTED_PLATFORM if sys.platform in ("win32", "cygwin") else None
+    if sys.platform in ("win32", "cygwin"):
+        return UNSUPPORTED_PLATFORM
+    if sys.platform not in ("darwin", "linux"):
+        return "This OS is unsupported. Keyhole is verified on macOS; Linux acceptance is pending. Nothing was changed."
+    return None
 
 
 def fail(code: str, message: str) -> None:
@@ -42,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tunnel-client",
         metavar="PATH",
-        help="tunnel-client executable; otherwise resolved from PATH",
+        help="override saved client path (legacy configurations fall back to PATH)",
     )
     actions = parser.add_subparsers(dest="action", required=True, metavar="COMMAND")
 
@@ -56,6 +59,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="accept the installed tunnel-client version after an upgrade",
     )
     group.add_argument("--rotate-key", action="store_true", help="replace the stored runtime key")
+    group.add_argument(
+        "--update-client",
+        action="store_true",
+        help="update a Keyhole-managed client to the verified version",
+    )
+    setup.add_argument(
+        "--no-browser", action="store_true", help="print official setup links without opening them"
+    )
 
     opening = actions.add_parser(
         "open", help="share a directory (read-only unless --access rw) and start the runtime"
@@ -92,7 +103,16 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("names", nargs="*", metavar="NAME")
         sub.add_argument("--all", action="store_true")
 
-    actions.add_parser("status", help="show configuration, environment checks and runtime state")
+    status = actions.add_parser(
+        "status", help="show configuration, environment checks and runtime state"
+    )
+    output = status.add_mutually_exclusive_group()
+    output.add_argument("--human", action="store_true", help="readable status and next step")
+    output.add_argument(
+        "--redact",
+        action="store_true",
+        help="issue-safe JSON without paths, ids or workspace names",
+    )
     history = actions.add_parser(
         "history", help="list recent recoverable changes, including interrupted ones"
     )
@@ -110,56 +130,11 @@ def require_terminal(parser: argparse.ArgumentParser) -> None:
         parser.error("run this in your own terminal; secret input needs a TTY")
 
 
-def confirm_untested(version: str) -> None:
-    from .runtime import TESTED_CLIENT_VERSIONS
-
-    if version in TESTED_CLIENT_VERSIONS:
-        return
-    print(
-        f"tunnel-client {version} has not been verified with this release "
-        f"(tested: {', '.join(TESTED_CLIENT_VERSIONS)}).",
-        file=sys.stderr,
-    )
-    typed = input("Type the version number to accept it anyway, or press Enter to stop: ").strip()
-    require(typed == version, "client_version_untested", "Setup stopped; nothing was written.")
-
-
 def run_setup(args, parser: argparse.ArgumentParser) -> dict:
-    from . import configure
-    from .runtime import NativeRuntime
-    from .state import StateStore
+    from .setup import run
 
-    store = StateStore(args.state_dir)
-    runtime = NativeRuntime(store, args.tunnel_client)
-    resume = store.command("resume", "--all", client=args.tunnel_client)
-    version = runtime.client_version()
-    if args.accept_client_version:
-        require_terminal(parser)
-        confirm_untested(version)
-        return {
-            **configure.accept_client_version(store, version),
-            "next_step": resume,
-        }
-    if args.rotate_key:
-        require_terminal(parser)
-        key = getpass.getpass("New runtime API key (hidden): ")
-        return {**configure.rotate_key(store, key), "next_step": resume}
     require_terminal(parser)
-    confirm_untested(version)
-    if sys.platform.startswith("linux"):
-        print(
-            "note: Keyhole is tested on macOS; on Linux only the unit tests run, the full flow is untested.",
-            file=sys.stderr,
-        )
-    tunnel_id = input("Tunnel id (tunnel_...): ").strip()
-    key = getpass.getpass("Runtime API key with Tunnels Read + Use (hidden): ")
-    result = configure.save_runtime(args.state_dir, tunnel_id, key, version)
-    return {
-        **result,
-        "next_step": store.command(
-            "open", "/path/to/project", "--access", "ro", client=args.tunnel_client
-        ),
-    }
+    return run(args)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -173,7 +148,7 @@ def main(argv: list[str] | None = None) -> None:
     from .runtime import NativeRuntime
     from .state import DEFAULT_STATE, StateStore
 
-    args.state_dir = args.state_dir or DEFAULT_STATE
+    args.state_dir = (args.state_dir or DEFAULT_STATE).expanduser().absolute()
     store = StateStore(args.state_dir)
     manager = Manager(store, NativeRuntime(store, args.tunnel_client))
     try:
@@ -195,6 +170,15 @@ def main(argv: list[str] | None = None) -> None:
             result = manager.status()
             if not result["configured"]:
                 result["next_step"] = store.command("setup", client=args.tunnel_client)
+            if args.human:
+                from .diagnostics import human_status
+
+                print(human_status(result, store.command("setup", client=args.tunnel_client)))
+                return
+            if args.redact:
+                from .diagnostics import redact_status
+
+                result = redact_status(result)
         else:
             result = manager.select(
                 args.names,
@@ -204,9 +188,29 @@ def main(argv: list[str] | None = None) -> None:
             )
         print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
     except KeyholeError as exc:
+        if args.action == "status" and args.redact:
+            from .diagnostics import error_code
+
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "redacted": True,
+                        "error": {"code": error_code({"code": exc.code})},
+                    }
+                )
+            )
+            raise SystemExit(1) from None
         fail(exc.code, exc.message)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        if args.action == "status" and args.redact:
+            fail("local_failure", "Local check failed; private details withheld.")
         fail("local_failure", f"{type(exc).__name__}: {exc}")
+    except (EOFError, KeyboardInterrupt):
+        fail(
+            "cancelled",
+            "Stopped. Existing configuration and files were kept; rerun setup to continue.",
+        )
 
 
 if __name__ == "__main__":

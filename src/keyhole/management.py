@@ -237,6 +237,7 @@ class Manager:
             return self.transition(state)
 
     def status(self) -> dict:
+        checks = self.runtime.checks()
         try:
             state = self.current()
         except KeyholeError as exc:
@@ -246,16 +247,19 @@ class Manager:
                 "observed_at": now(),
                 "configured": False,
                 "state_dir": str(self.store.path),
-                "checks": self.runtime.checks(),
+                "checks": checks,
                 "next_step": self.store.command("setup"),
             }
-        result = self.runtime.status()
+        try:
+            result = self.runtime.status()
+        except KeyholeError as exc:
+            result = {"error": {"code": exc.code, "message": exc.message}}
         live = bool(result.get("ready") and result.get("process_running"))
         return {
             "observed_at": now(),
-            "configured": True,
+            "configured": "config_error" not in checks,
             "state_dir": str(self.store.path),
-            "checks": self.runtime.checks(),
+            "checks": checks,
             "configuration": state,
             "runtime": result,
             "effective_open_workspaces": [w["name"] for w in state["workspaces"] if w["enabled"]]

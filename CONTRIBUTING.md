@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for looking. Keyhole is small on purpose; the most useful contributions are bug reports with the JSON
-that `keyhole` printed, fixes with a test, and documentation that makes setup clearer.
+Thanks for looking. Keyhole is small on purpose; the most useful contributions are bug reports with
+`keyhole status --redact`, fixes with a test, and documentation that makes setup clearer.
 
 ## Working on the code
 
@@ -33,14 +33,11 @@ normal terminal rather than a restricted sandbox.
 
 ## Releasing (maintainer)
 
-1. Update `CHANGELOG.md` and the version in `src/keyhole/__init__.py` and `.codex-plugin/plugin.json`.
-2. Prepare the new `docs/setup.md` install URL on the release branch. Keep the public guide on the previous
-   working URL until the new release assets are available.
-3. `uv lock`, run the full suite from a terminal, run one real ChatGPT check (read, edit, restore, close).
-4. After the release branch passes CI, run `uv build` and verify both artifacts as CI does. Prepare a draft
-   GitHub release for that exact commit with `dist/keyhole_mcp-X.Y.Z-py3-none-any.whl`, the source archive and
-   their checksums attached. Publish it as `vX.Y.Z`, verify the public downloads, then merge the reviewed
-   branch so the new guide's URL works immediately. Installing from the wheel needs no Git on the user's Mac.
+Follow [Publishing a reviewed release](docs/publishing.md). Build once, test wheel and source archive
+outside the checkout, then publish the same artifacts through the manually approved workflow. Account
+configuration and first PyPI publication require maintainer authorization. Keep the current working install
+link until the new public artifacts have been verified. Do not describe an unreleased wizard as part of an
+older wheel, or a passing CI matrix as real ChatGPT acceptance on a new OS.
 
 ## GitHub repository settings (maintainer)
 

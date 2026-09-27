@@ -6,6 +6,7 @@ import os
 import re
 import stat
 from pathlib import Path
+from uuid import uuid4
 
 from .errors import KeyholeError, require
 from .filesystem import local_path_error
@@ -90,7 +91,7 @@ def save_runtime(path: Path, tunnel_id: str, key: str, client_version: str) -> d
             raise KeyholeError(
                 "already_configured",
                 f"{path / name} already exists. Use `keyhole setup --rotate-key` or "
-                "`keyhole setup --accept-client-version`, or remove the state directory deliberately.",
+                "`keyhole setup --accept-client-version`. Rerun `keyhole setup` to continue safely.",
             )
         write_exclusive(fd, "runtime.key", (key + "\n").encode("ascii"))
         key_created = True
@@ -125,10 +126,111 @@ def rotate_key(store: StateStore, key: str) -> dict:
     validate_key(key)
     store.read("runtime.json")
     with store.directory() as directory:
-        tmp = ".runtime.key.tmp"
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(tmp, dir_fd=directory)
-        write_exclusive(directory, tmp, (key + "\n").encode("ascii"))
-        os.replace(tmp, "runtime.key", src_dir_fd=directory, dst_dir_fd=directory)
-        os.fsync(directory)
+        tmp = f".runtime.key-{uuid4()}.tmp"
+        try:
+            write_exclusive(directory, tmp, (key + "\n").encode("ascii"))
+            os.replace(tmp, "runtime.key", src_dir_fd=directory, dst_dir_fd=directory)
+            os.fsync(directory)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp, dir_fd=directory)
     return {"rotated": True}
+
+
+def setup_config(store: StateStore) -> dict:
+    """Read partial configuration without reading the secret or resetting other state."""
+    try:
+        config = store.read("runtime.json")
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise KeyholeError(
+            "runtime_config",
+            "runtime.json is not valid UTF-8 JSON. Keep it for local review; do not delete your state.",
+        ) from exc
+    except KeyholeError as exc:
+        if exc.code == "not_configured":
+            return {}
+        raise
+    require(
+        isinstance(config, dict) and config.get("schema_version") == 1,
+        "runtime_config",
+        "Invalid runtime.json; keep it for local review, do not delete your state.",
+    )
+    if config.get("tunnel_id") is not None:
+        require(isinstance(config["tunnel_id"], str), "runtime_config", "Invalid tunnel id type.")
+        validate_tunnel_id(config["tunnel_id"])
+    if config.get("runtime_api_key_ref") is not None:
+        require(
+            config["runtime_api_key_ref"] == "file:" + str(store.path / "runtime.key"),
+            "runtime_config",
+            "The saved key reference belongs to another state directory.",
+        )
+    return config
+
+
+def key_present(store: StateStore) -> bool:
+    from .runtime import NativeRuntime
+
+    try:
+        NativeRuntime(store).check_key()
+    except KeyholeError as exc:
+        if exc.code == "not_configured":
+            return False
+        raise
+    return True
+
+
+def complete_setup(
+    store: StateStore,
+    *,
+    expected: dict,
+    tunnel_id: str,
+    key: str | None,
+    client: str,
+    version: str,
+    source: str,
+) -> dict:
+    """Merge missing values under the management lock, preserving every unrelated field."""
+    validate_tunnel_id(tunnel_id)
+    if key is not None:
+        validate_key(key)
+    require(
+        source in ("managed", "external") and Path(client).is_absolute(),
+        "runtime_config",
+        "The client must have an absolute path and known owner.",
+    )
+    fd = open_private_directory(store.path)
+    os.close(fd)
+    with store.lock():
+        current = setup_config(store)
+        require(
+            current == expected, "setup_changed", "Configuration changed during setup. Rerun setup."
+        )
+        present = key_present(store)
+        require(
+            not (present and key is not None),
+            "setup_changed",
+            "A key was saved while setup was waiting. Rerun setup to reuse it or rotate it explicitly.",
+        )
+        require(present or key is not None, "not_configured", "A runtime key is still needed.")
+        # If interrupted after writing the key, the next setup reuses it without displaying it.
+        if not present:
+            with store.directory() as directory:
+                write_exclusive(directory, "runtime.key", (key + "\n").encode("ascii"))
+                os.fsync(directory)
+        updated = {
+            **current,
+            "schema_version": 1,
+            "tunnel_id": tunnel_id,
+            "runtime_api_key_ref": "file:" + str(store.path / "runtime.key"),
+            "tunnel_client_version": version,
+            "tunnel_client_path": client,
+            "tunnel_client_source": source,
+        }
+        if updated != current:
+            store.write_json("runtime.json", updated)
+    return {
+        "configured": True,
+        "client": client,
+        "client_version": version,
+        "client_source": source,
+    }

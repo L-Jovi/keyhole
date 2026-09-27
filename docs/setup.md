@@ -1,183 +1,149 @@
 # Your first file in ChatGPT
 
-This is the complete first-time setup. Keep this page open and follow the steps in order; you do not need
-to repeat anything in the README afterwards. The examples use one folder, `~/KeyholeDemo`, shown to ChatGPT
-as `demo`, and one file, `hello.txt`.
+> This guide describes the upcoming setup wizard on `main`. The published **v0.3.2** wheel does not
+> contain it yet: use the [v0.3.2 setup guide](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md)
+> for that release. PyPI publication is pending. Do not install the unrelated PyPI package `keyhole`.
 
-## 1. Check the two accounts you need
+Follow this page from top to bottom. The goal is one real ChatGPT read of a fictional note in a folder
+you deliberately shared. No personal documents are needed to try it.
 
-- **A Mac.** Apple silicon on macOS 15.6/15.7.7 is verified. Intel Macs and older macOS are untested.
-  Windows is unsupported; Linux has only experimental unit-test coverage.
-- **ChatGPT on the web, with Developer mode available.** Tested with Pro in Chat mode. On a team workspace,
-  your administrator may need to allow it. Check this before installing anything.
-- **OpenAI Platform access.** You must be able to create a tunnel (*Tunnels: Read + Manage*) and a restricted
-  runtime API key (*Tunnels: Read + Use*). A ChatGPT subscription alone does not establish those permissions.
+## 1. Check access before installing
 
-OpenAI changes its screens and eligibility over time. The official
-[Secure MCP Tunnel guide](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels) and
-[Developer mode guide](https://developers.openai.com/api/docs/guides/developer-mode) describe current access.
-Keyhole cannot enable an account feature or create the website resources for you.
+- **A Mac.** Apple silicon on macOS 15.6/15.7.7 is verified. Intel and older macOS are untested.
+  Linux validation is in progress; Windows is unsupported. See [platform evidence](platforms.md).
+- **ChatGPT web with Developer mode.** Tested with Pro in Chat mode; other eligible plans and fresh-account
+  onboarding are untested here. A workspace administrator may need to grant access.
+- **OpenAI Platform tunnel permissions.** Creating a tunnel needs **Tunnels: Read + Manage**; the runtime
+  key and the person selecting the tunnel in ChatGPT need **Read + Use**.
 
-## 2. Install the tools
+ChatGPT and Platform are two product surfaces; you do not necessarily need two different accounts.
+A ChatGPT subscription alone does not establish Platform permissions. Check the current
+[official guide](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels) if the controls are absent.
+Keyhole cannot enable these permissions for you.
 
-If Homebrew is already installed:
+## 2. Install Keyhole
 
-```sh
-brew install uv openai/tools/tunnel-client
-```
-
-<details>
-<summary>No Homebrew? Use the official standalone downloads instead</summary>
-
-Install `uv`, then make its command available in this terminal:
+If you already have `uv`, skip its installation. Otherwise use Homebrew (`brew install uv`) or the
+[official standalone installer](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
+uv --version
 ```
 
-From OpenAI's [tunnel-client 0.0.14 release](https://github.com/openai/tunnel-client/releases/tag/v0.0.14),
-download `SHA256SUMS.txt` and the ZIP for your Mac into Downloads:
-
-| Mac | ZIP |
-| --- | --- |
-| Apple silicon (M1 or newer) | `tunnel-client-v0.0.14-darwin-arm64.zip` |
-| Intel (untested here) | `tunnel-client-v0.0.14-darwin-amd64.zip` |
-
-For Apple silicon, verify and extract it:
+For the published release, use the **wheel link on the
+[release page](https://github.com/L-Jovi/keyhole/releases/latest)** and its versioned setup guide.
+The next release will provide this wizard. Maintainers can test it from a reviewed source checkout:
 
 ```sh
-cd ~/Downloads &&
-  grep ' tunnel-client-v0.0.14-darwin-arm64.zip$' SHA256SUMS.txt | shasum -a 256 -c - &&
-  mkdir -p ~/.local/bin &&
-  unzip tunnel-client-v0.0.14-darwin-arm64.zip tunnel-client -d ~/.local/bin
-```
-
-The checksum must say `OK`. On Intel use `amd64` in both commands. If `unzip` asks to replace an existing
-file, check its version first. This path needs no Git, Python or Xcode command line tools. It was tested in
-a simulated environment with developer-tool commands unavailable, not on a freshly erased Mac.
-
-</details>
-
-Then install the current release:
-
-```sh
-uv tool install https://github.com/L-Jovi/keyhole/releases/download/v0.3.2/keyhole_mcp-0.3.2-py3-none-any.whl
+uv tool install .
 export PATH="$HOME/.local/bin:$PATH"
 keyhole --version
-tunnel-client --version
-```
-
-`uv` downloads Python when needed and isolates Keyhole's dependencies. The `keyhole` command is normally in
-`~/.local/bin`; Homebrew's commands stay in its own prefix (`/opt/homebrew` on Apple silicon or `/usr/local`
-on Intel). The `export` line affects this terminal only. To keep Keyhole available in new terminals, run
-`uv tool update-shell` once and reopen your terminal; it updates the appropriate shell startup file.
-
-**Use the wheel link above.** `pip install keyhole` installs an unrelated satellite-imagery package.
-The Keyhole distribution uses the distinct name `keyhole-mcp`; the command remains `keyhole`.
-Keyhole is not currently published to PyPI. Source code on `main` may be ahead of the published wheel.
-
-## 3. Create your tunnel and runtime key
-
-1. On OpenAI Platform, open [Settings → Organization → Tunnels](https://platform.openai.com/settings/organization/tunnels).
-   Create a tunnel named `keyhole-macbook`.
-2. Associate it only with the ChatGPT workspace you intend to use. Other members with the necessary
-   Tunnels permissions in an associated workspace may also be able to select it; use your personal
-   workspace for personal files.
-3. Copy its **tunnel id**, beginning with `tunnel_`. This is your own Platform resource, not the GitHub URL.
-4. In [Organization → API keys](https://platform.openai.com/settings/organization/api-keys), create a
-   **restricted** runtime key with **Tunnels: Read + Use**. Do not use an admin key. Keep the key private;
-   you will paste it into the hidden terminal prompt in the next step, never into a chat.
-
-The tunnel-creation permissions belong to your account; the narrower Read + Use permissions belong to
-the key used by the running client.
-
-## 4. Connect Keyhole and open the demo folder
-
-```sh
 keyhole setup
 ```
 
-Paste your tunnel id, then your runtime key at the hidden prompt. Nothing appears while the key is entered;
-press Return. Setup stores the key privately in `~/.config/keyhole/runtime.key` with mode `0600` and records
-the installed client version. If the version differs from tested `0.0.14`, review its release notes before
-accepting the prompt. Setup configures local files; it does not create your tunnel or ChatGPT app.
+`uv` supplies Python when needed and isolates dependencies. The command is normally in `~/.local/bin`;
+Homebrew itself uses its own prefix. If `uv` uses a custom bin directory, use `uv tool dir --bin` to find it.
+The `export` above affects this terminal only. To keep the command in new terminals, explicitly run
+`uv tool update-shell` and reopen your terminal; that command edits your shell startup file.
+Check `keyhole --version` in the new terminal before continuing.
 
-Create the actual file that ChatGPT will read. This command stops if `~/KeyholeDemo` already exists, so it
-will not overwrite your files; use a new folder name consistently if needed.
+Do not install `tunnel-client` separately unless you prefer to maintain it yourself. Setup can download
+the verified official bundle for your OS and architecture, after showing its size and location and asking
+for permission. It verifies the pinned SHA-256 and preserves the official licenses. No sudo is needed.
+Existing clients are shown with their version and location; Homebrew installations remain externally managed.
 
-```sh
-mkdir ~/KeyholeDemo &&
-  printf 'Hello from Keyhole.\nThis file is on my Mac.\n' > ~/KeyholeDemo/hello.txt &&
-  keyhole open ~/KeyholeDemo --name demo
-```
+## 3. Follow the terminal wizard
 
-The output should contain `"ready": true` and `"access": "ro"`. If it reports an error, follow the message
-or the [troubleshooting table](../README.md#troubleshooting) before continuing. The first `open` starts the
-official tunnel client; there is no server terminal to leave open. Local readiness is only the transport
-check. The next steps prove that ChatGPT can actually read your file.
+Use `keyhole setup --no-browser` if you prefer to open links yourself. The wizard prints these steps:
 
-## 5. Create your private ChatGPT app
+1. Open [Platform → Organization → Tunnels](https://platform.openai.com/settings/organization/tunnels).
+   Create a tunnel, for example `keyhole-laptop`, and associate **only your intended ChatGPT workspace**.
+   Other authorized members of that workspace may also be able to select the tunnel.
+2. Paste its `tunnel_...` id into the terminal. This is a Platform resource, not the GitHub repository URL.
+3. Open [Organization → API keys](https://platform.openai.com/settings/organization/api-keys). Create a
+   **restricted runtime key with Tunnels: Read + Use**, not an admin key. Paste it at the hidden terminal
+   prompt; nothing should appear as you type. Never paste a key into ChatGPT or an issue.
+4. Accept the optional sample-folder prompt to create and share a **new** `~/KeyholeDemo` read-only,
+   shown as `demo`. It contains `notes.md` with three fictional ideas. If the directory or workspace name
+   already exists, setup stops that step without overwriting or sharing it implicitly.
 
-1. In ChatGPT on the web, enable **Developer mode** in Settings (currently **Security and login**).
-2. Open **Plugins**, press **+**, and choose to create an app for your own MCP server.
-3. Name it **Keyhole**. Use this description:
+Setup records the key privately, with file mode `0600` inside a `0700` state directory. It remembers the
+client path, so there is no second executable to add to PATH. Rerunning setup reuses complete values and
+continues missing steps; it does not reset grants or recovery history. Cancelled downloads can be retried.
+If you skip the sample, open one intended folder yourself with `keyhole open /absolute/path --name demo`.
 
-   > Read the local folders I open with Keyhole on my Mac. Read-only by default; text edits require a local rw grant. Hash-checked edits with local recovery. No shell execution or public port.
+**Expected:** local configuration is saved, then opening the sample reports `"ready": true` and `"access": "ro"`.
+Configuration saved does not validate remote permissions; readiness does not prove a ChatGPT read.
 
-4. Choose **Connection: Tunnel**, then your `keyhole-macbook` tunnel from step 3. Do not enter the repository
-   URL. If the tunnel is absent, check its associated ChatGPT workspace and your Platform permissions.
-5. Choose **Authentication: No Authentication** for the MCP server. Access is authenticated by OpenAI's
-   tunnel connection and workspace association; Keyhole has no separate user login.
-6. Keep write confirmations enabled and save. The app contacts your running server while being created.
-   If it cannot connect, run `keyhole status` and resolve the reported error before retrying.
+**If blocked:** run `keyhole status --human` and follow its next step. Download failures should be retried,
+not worked around by disabling checksum checks. A missing saved client path does not silently fall back to
+another installation. For a new explicit path, run `keyhole --tunnel-client /absolute/path setup`.
+If sample creation succeeded but its connection failed, keep the files and use the exact `keyhole open`
+retry command printed by the error. There is no need to delete or recreate the sample.
 
-This app is private to your setup. A GitHub download does not install a shared app into your ChatGPT account.
-If you previously created it as **Local Evidence Bridge**, edit that existing app's name and description in
-its Manage page; keep the same tunnel and connection. Renaming the repository or CLI does not rename it.
+## 4. Create your private ChatGPT app
 
-## 6. Read the file — setup is complete here
+The demo must be open while creating the app; `keyhole open` starts the official runtime in the background.
+There is no extra terminal server command to keep running.
 
-Start a **new Chat** conversation, type `@Keyhole`, and select **Keyhole** from the menu (or use the
-composer's **+** menu). Merely typing its name as plain text does not select the app.
+1. In ChatGPT web, enable **Developer mode** in Settings (currently **Security and login**).
+2. Open **Plugins**, press **+**, and create an app for your own MCP server. Name it **Keyhole**.
+3. Use this description:
 
-![Selecting the private Keyhole app in a new Chat conversation](images/select-keyhole.png)
+   > Read only the local folders I open. Explicit local rw grants allow hash-checked text edits with recovery. No shell or public port.
 
-Then send:
+4. Select **Connection: Tunnel**, then your tunnel. If absent, check workspace association and your
+   Platform **Tunnels: Read + Use** permission. Creating a key alone does not associate a workspace.
+5. Select **Authentication: No Authentication** for the MCP server. The OpenAI tunnel and its workspace
+   association authenticate access; Keyhole does not add another login. Keep write confirmations enabled.
+6. Save. If discovery fails, inspect `keyhole status --human`, fix its reported issue and retry.
 
-> In workspace `demo`, read `hello.txt`. Quote both lines exactly, then give its SHA-256. Use the Keyhole tool, not an uploaded file.
+The app is private to your setup. Secure MCP Tunnel does not provide public plugin-store distribution.
+For a renamed existing Local Evidence Bridge app, keep its tunnel and edit its name/description.
 
-You should see the two lines you created and a tool result for `read_file`. Check that the text matches.
-A generic statement such as “I can access files” is not a successful test.
+## 5. Read your first file
 
-**You are now connected.** Continue below only if you want to test editing; daily commands are in the
-[README](../README.md#daily-use). To stop now, run `keyhole close demo`.
+Start a new **Chat** conversation, type `@Keyhole`, and select the actual app from the menu. Typing its
+name as ordinary text does not connect it. Then send:
+
+> In workspace `demo`, read `notes.md` using Keyhole. Quote the three ideas and give the SHA-256.
+
+**Success:** ChatGPT makes a real `read_file` call and returns the same three ideas as your local file.
+A generic “I can access files” statement is not evidence. If no tool is called, check the selected app and
+start a new conversation. Use [diagnostics](../README.md#troubleshooting) for an actual tool failure.
+
+![Selecting the Keyhole app](images/select-keyhole.png)
+
+The following earlier acceptance example read a synthetic `hello.txt`; the new wizard uses `notes.md`:
+
+![Real ChatGPT read of a synthetic file](images/read-file.png)
+
+Setup is complete after the successful read. To stop now, run `keyhole close demo`.
 
 ## Optional: edit, restore, and close
 
-The demo starts read-only. Asking ChatGPT to modify it should be refused with `read_only` if it attempts a
-write. Only a local command can allow edits:
+Only the local CLI can allow editing:
 
 ```sh
 keyhole access demo rw
 ```
 
-In the same chat, ask:
+Ask ChatGPT:
 
-> In `demo`, read `hello.txt` again, append the line `Reviewed with Keyhole.`, and read it back. Show the change id. Then restore that change and read the file once more to confirm the original two lines.
+> Read `demo/notes.md` again. Turn the three ideas into a Markdown TODO checklist. Keep everything else
+> unchanged, use the current hash, and show the change id. Read it back to confirm.
 
-Keep the returned change id. Recovery refuses to overwrite a later external edit; history is bounded, so
-it is not a permanent backup. `keyhole history --limit 100` shows recent retained records only: absence from
-that list does not prove no change ever occurred.
-
-Finally:
+Inspect the local file, then ask ChatGPT to restore that change id and read it again. Recovery refuses to
+overwrite a later external edit; history is bounded and is not a permanent backup. Finally:
 
 ```sh
 keyhole close demo
 ```
 
-Ask ChatGPT to read `demo/hello.txt` again. A new tool call must fail; if this was the last open folder, the
-runtime stops and ChatGPT may report the app unavailable. The previous conversation can still remember
-content already read. Closing access does not erase that content from the chat.
+Ask for a **new tool call** reading `demo/notes.md`. It must fail; closing the last folder stops the runtime,
+so the app may instead become unavailable. Existing chat content remains in the conversation.
 
-Optional maintenance is a separate guide: [upgrades, custom paths, recovery and uninstall](maintenance.md).
+For help, `keyhole status --redact` produces an issue-safe diagnostic summary without keys, tunnel ids,
+private paths or workspace names. [Maintenance](maintenance.md) covers upgrades, history and uninstall.
