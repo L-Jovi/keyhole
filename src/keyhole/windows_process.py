@@ -26,15 +26,21 @@ kernel.LocalFree.argtypes = [ctypes.c_void_p]
 
 def query(script):
     executable = Path(os.environ["SYSTEMROOT"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    modules = executable.parent / "Modules"
+    imports = " ".join(
+        "Import-Module -Name '" + str(modules / name / (name + ".psd1")).replace("'", "''") + "';"
+        for name in ("CimCmdlets", "Microsoft.PowerShell.Utility")
+    )
     command = (
         "$ErrorActionPreference='Stop'; "
-        "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); " + script
+        "$PSModuleAutoLoadingPreference='None'; "
+        "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); " + imports + " " + script
     )
     # MCP launchers may omit PSModulePath. Windows PowerShell then searches the
     # user's default module locations, which can stall module discovery. These
     # fixed OS queries need only the modules shipped beside powershell.exe.
     env = dict(os.environ)
-    env["PSMODULEPATH"] = str(executable.parent / "Modules")
+    env["PSMODULEPATH"] = str(modules)
     try:
         result = subprocess.run(
             [str(executable), "-NoProfile", "-NonInteractive", "-Command", command],

@@ -71,7 +71,7 @@ jobs:
       - run: uv run keyhole --help
       - run: uv run keyhole --version
       - name: Diagnose an unconfigured disposable state without modifying it
-        run: uv run python -c "import json, subprocess, tempfile; from pathlib import Path; p=Path(tempfile.mkdtemp())/'unconfigured'; r=subprocess.run(['keyhole','--state-dir',str(p),'status','--redact'],capture_output=True,encoding='utf-8'); assert r.returncode == 0, r.stderr; value=json.loads(r.stdout); assert not value['configured']; assert value['open_workspace_count'] == 0; assert not p.exists()"
+        run: uv run python -c "import json, subprocess, tempfile; from pathlib import Path; p=Path(tempfile.mkdtemp()).resolve()/'unconfigured'; r=subprocess.run(['keyhole','--state-dir',str(p),'status','--redact'],capture_output=True,encoding='utf-8'); assert r.returncode == 0, (r.stdout,r.stderr); value=json.loads(r.stdout); assert not value['configured'], value; assert value['open_workspace_count'] == 0, value; assert not p.exists(), str(p)"
 
   windows-feasibility:
     name: Windows native / ${{ matrix.os }} / Python ${{ matrix.python }} (acceptance pending)

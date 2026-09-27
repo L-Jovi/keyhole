@@ -18,11 +18,11 @@ def main():
     )
     minimal = get_default_environment()
     cases = {
+        "mcp-with-system-modules": {**minimal, "PSMODULEPATH": str(executable.parent / "Modules")},
         "inherited": dict(os.environ),
         "mcp-default": minimal,
         "mcp-with-windir": {**minimal, "WINDIR": os.environ["SYSTEMROOT"]},
         "mcp-with-module-path": {**minimal, "PSMODULEPATH": os.environ.get("PSMODULEPATH", "")},
-        "mcp-with-system-modules": {**minimal, "PSMODULEPATH": str(executable.parent / "Modules")},
     }
     for name, env in cases.items():
         start = time.monotonic()
