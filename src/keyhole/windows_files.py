@@ -34,7 +34,6 @@ FILE_DIRECTORY_FILE = 0x00000001
 FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
 FILE_NON_DIRECTORY_FILE = 0x00000040
 FILE_OPEN_REPARSE_POINT = 0x00200000
-FILE_OPEN_NO_RECALL = 0x00400000
 FILE_ATTRIBUTE_DIRECTORY = 0x10
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 FILE_ATTRIBUTE_OFFLINE = 0x1000
@@ -150,7 +149,9 @@ ntdll.RtlNtStatusToDosError.restype = wintypes.ULONG
 
 def check_status(status: int) -> None:
     if status < 0:
-        raise ctypes.WinError(ntdll.RtlNtStatusToDosError(status))
+        error = ctypes.WinError(ntdll.RtlNtStatusToDosError(status))
+        error.add_note(f"NTSTATUS 0x{status & 0xFFFFFFFF:08x}")
+        raise error
 
 
 def component(name: str) -> None:
@@ -277,7 +278,6 @@ def child(parent: Handle, name: str, *, directory=False, write=False, delete=Fal
             FILE_SHARE_READ | FILE_SHARE_WRITE | (0 if directory else FILE_SHARE_DELETE),
             FILE_CREATE if create else FILE_OPEN,
             FILE_OPEN_REPARSE_POINT
-            | FILE_OPEN_NO_RECALL
             | FILE_SYNCHRONOUS_IO_NONALERT
             | (FILE_DIRECTORY_FILE if directory else FILE_NON_DIRECTORY_FILE),
             None,
