@@ -21,7 +21,8 @@ The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh
   download checks and a separate non-admin Windows feasibility probe. Windows remains unsupported.
 - Ubuntu x86_64 support, with a real Ubuntu 24.04 official Tunnel → ChatGPT read, read-only refusal,
   edit, restore and closed-access acceptance on 2026-09-27. Ubuntu 22.04 has automated coverage.
-- A manually gated Trusted Publishing workflow and maintainer instructions; no PyPI publication is implied.
+- PyPI distribution as `keyhole-mcp`, published through a manually gated Trusted Publishing workflow.
+  PyPI and GitHub release attachments contain the same verified wheel and sdist bytes.
 - Related-project comparison and explicit platform acceptance criteria.
 - A 59-second walkthrough, short GIF and static preview from real ChatGPT read/edit/restore/close
   results with fictional notes. Setup and waiting are explicitly omitted.

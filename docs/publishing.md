@@ -1,7 +1,10 @@
 # Publishing a reviewed release
 
-PyPI publication is prepared, not enabled merely by adding a workflow. The package name is `keyhole-mcp`;
-the executable/module remains `keyhole`. A missing PyPI page does not reserve that name.
+The package is published as [keyhole-mcp](https://pypi.org/project/keyhole-mcp/); the executable/module
+remains `keyhole`. Version 0.4.0 was the first PyPI release, published through the protected
+[Trusted Publishing workflow](https://github.com/L-Jovi/keyhole/actions/runs/36296941929) on 2026-09-27.
+An isolated installation from PyPI and matching PyPI/GitHub artifact SHA-256 checks passed before the
+README installation entry was updated. Adding a workflow alone does not authorize later releases.
 
 ## One-time account setup
 
