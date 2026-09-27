@@ -131,7 +131,8 @@ jobs:
           architecture: x64
       - uses: astral-sh/setup-uv@v7
       - name: Install a test-only Windows pseudoterminal controller
-        run: uv pip install --system --python python --only-binary :all: pywinpty==3.0.5
+        run: >-
+          uv pip install --system --python python --only-binary :all: pywinpty==3.0.5
       - run: uv build
       - name: Exercise the acceptance installer without credentials or a tunnel
         shell: pwsh
