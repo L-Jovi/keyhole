@@ -3,12 +3,15 @@
 One page on how Keyhole works and where its trust boundaries are. Command and tool details are in
 [reference.md](reference.md).
 
+Windows details below describe the native candidate. See [platform evidence](platforms.md) for its
+acceptance status; the published 0.4.0 release supports macOS and Ubuntu.
+
 ## Components
 
 | Part | Runs as | Responsibility |
 | --- | --- | --- |
 | `keyhole` CLI (`keyhole.cli`) | your terminal, on demand | The only place grants change: open, close, resume, forget, access, setup, history |
-| Grants and runtime state | `~/.config/keyhole/` (0700) | `grants.json`, `runtime.json`, `runtime.key`, `changes.sqlite3`, `management.lock`, `profiles/` |
+| Grants and runtime state | `~/.config/keyhole/` (POSIX 0700; protected owner ACL on Windows) | `grants.json`, `runtime.json`, `runtime.key`, `changes.sqlite3`, `management.lock`, `profiles/` |
 | `tunnel-client` runtime | background, supervised by OpenAI's client (a `tmux` session if `tmux` is installed, a detached process otherwise; both keep running after the terminal closes) | Outbound connection to OpenAI; forwards JSON-RPC to the server over stdio |
 | MCP server (`keyhole.server`) | child of the runtime | Twelve tools; every call re-checks authorization before touching a file |
 | Parser subprocess (`keyhole.parsers`) | per document read | PDF, Office and image parsing under CPU, time and size limits; best-effort address-space limit |
@@ -39,9 +42,10 @@ sidestep the checks below.
 ## Reading
 
 Every path from ChatGPT is a workspace name plus a relative path. The server walks from `/` to the file one
-component at a time with `O_NOFOLLOW`, using directory file descriptors, and verifies before and after the
-read that no component was swapped. Symbolic links, files with more than one hard link, and special files
-are refused. The root's device and inode must still match the grant.
+component at a time with `O_NOFOLLOW` on POSIX. Windows opens one component relative to its held parent
+NTFS handle, refuses reparse points and holds ancestor handles against rename. Both paths verify before
+and after the read that no component was swapped. Links, files with more than one hard link, and special
+files are refused. The root's volume and file identity must still match the grant.
 
 Exclusions are applied to every component of every path, on listing, search, read and write alike. Built-in
 names (`.git`, `.ssh`, `.env*`, keys, credentials, package caches, agent state) match at any depth; user
@@ -51,7 +55,8 @@ folding, because macOS file systems are case-insensitive and normalization-insen
 Documents are parsed in a separate interpreter (`python -I -m keyhole.parsers`) that receives only an
 anonymous copy of the bytes, and is killed at 20 seconds wall clock or 15 seconds CPU. It retains the
 current user's OS file and network permissions; there is no OS sandbox. A 2 GiB address-space limit is
-attempted, but may be rejected on macOS. OOXML
+attempted on POSIX, but may be rejected on macOS. Windows assigns each parser to a Job Object with a
+15-second CPU limit and 2 GiB process-memory limit; failure to install these limits aborts parsing. OOXML
 containers are checked for size, member paths, entities and DTDs before any library opens them.
 
 ## Writing
@@ -66,22 +71,28 @@ A mutation runs under the same lock as grant changes:
 
 1. Validate the request id (8 to 80 characters). A repeated id with identical arguments returns the original
    receipt; with different arguments it is refused.
-2. Snapshot every affected path (content, mode, identity) and compare with `expected_sha256`.
+2. Snapshot every affected path (content, mode, identity and Windows DACL) and compare with `expected_sha256`.
 3. Record the operation as `prepared` in `changes.sqlite3`, including the snapshots.
 4. Stage the new content in the same directory, verify the target has not changed, then publish it with an
-   atomic rename (or an exclusive hard link for a new file, so a concurrent creator never loses).
+   atomic rename. New files use an exclusive hard link on POSIX or a no-replace handle-relative rename
+   on Windows, so a concurrent creator never loses.
 5. Re-read every path and compare with the intended result; only then mark the record `committed`.
 6. If anything fails after step 3, the record stays `prepared`. Further edits to those paths are refused
    until `restore_change` repairs them using the snapshots.
 
 Moves and copies are two single-file steps, not a multi-file transaction; the journal makes an interrupted
-step visible and repairable rather than atomic. POSIX mode bits, a UTF-8 BOM and CRLF line endings are
-preserved; ACLs, extended attributes and the inode are not.
+step visible and repairable rather than atomic. A UTF-8 BOM and CRLF line endings are preserved.
+POSIX preserves mode bits, but not ACLs or extended attributes. Windows retains the owned file's DACL
+and read-only attribute; mutation refuses read-only, encrypted, compressed or sparse files and files
+with named alternate streams. Other extended metadata and the old file identity are not preserved.
+Windows flushes file contents before publication but has no equivalent directory-fsync guarantee;
+process-interruption recovery tests do not establish sudden-power-loss durability.
 
 ## Recovery history
 
-`changes.sqlite3` (0600, page-count capped) stores each record twice: a public summary (paths, hashes,
-status) that tools may return, and the full record with snapshots. With `--recovery off` the snapshots are
+`changes.sqlite3` (private POSIX mode or Windows ACL, page-count capped) stores each record twice: a public summary (paths, hashes,
+status) that tools may return, and the full record with snapshots. Windows ACLs and account SIDs stay
+in the private record and are never included in the tool receipt. With `--recovery off` the snapshots are
 stripped once a record is committed, so the file cannot be used to restore old content; they are kept while
 an operation is in flight so an interruption is still repairable.
 

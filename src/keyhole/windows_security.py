@@ -74,7 +74,16 @@ advapi.GetSecurityDescriptorControl.argtypes = [
     ctypes.POINTER(wintypes.DWORD),
 ]
 advapi.GetAce.argtypes = [ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p)]
-advapi.SetKernelObjectSecurity.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_void_p]
+advapi.SetSecurityInfo.argtypes = [
+    wintypes.HANDLE,
+    wintypes.DWORD,
+    wintypes.DWORD,
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+]
+advapi.SetSecurityInfo.restype = wintypes.DWORD
 
 
 def checked(value):
@@ -236,7 +245,19 @@ def restore_dacl(handle: int, value: bytes) -> None:
         if control.value & SE_DACL_PROTECTED
         else UNPROTECTED_DACL_SECURITY_INFORMATION
     )
-    checked(advapi.SetKernelObjectSecurity(handle, flags, buffer))
+    present, defaulted, acl = wintypes.BOOL(), wintypes.BOOL(), ctypes.c_void_p()
+    checked(
+        advapi.GetSecurityDescriptorDacl(
+            buffer, ctypes.byref(present), ctypes.byref(acl), ctypes.byref(defaulted)
+        )
+    )
+    if not present.value or not acl.value:
+        raise ValueError("Cannot restore a missing or null file DACL.")
+    # File objects need SetSecurityInfo so inherited ACLs retain automatic
+    # inheritance. SetKernelObjectSecurity drops that state on ordinary files.
+    error = advapi.SetSecurityInfo(handle, SE_FILE_OBJECT, flags, None, None, acl, None)
+    if error:
+        raise ctypes.WinError(error)
 
 
 advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [

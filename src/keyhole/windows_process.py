@@ -155,15 +155,16 @@ def terminate_owned(state_dir):
             checked(process)
         try:
             if creation_time(process) == created:
-                if not kernel.TerminateProcess(process, 1):
-                    error = ctypes.get_last_error()
-                    # A virtualenv redirector can exit with its child between
-                    # enumeration and termination. Win32 then reports access
-                    # denied even for a handle that has PROCESS_TERMINATE.
-                    if kernel.WaitForSingleObject(process, 0) != 0:
-                        raise ctypes.WinError(error)
+                stopped = kernel.TerminateProcess(process, 1)
+                error = ctypes.get_last_error() if not stopped else 0
+                # A virtualenv redirector can exit with its child between
+                # enumeration and termination. Win32 reports access denied
+                # while that exit is pending; the held handle proves its exit.
+                exited = kernel.WaitForSingleObject(process, 3000) == 0
+                if not stopped and not exited:
+                    raise ctypes.WinError(error)
                 require(
-                    kernel.WaitForSingleObject(process, 3000) == 0,
+                    exited,
                     "windows_process_stop_failed",
                     "A verified Keyhole process did not exit before the shutdown deadline.",
                 )

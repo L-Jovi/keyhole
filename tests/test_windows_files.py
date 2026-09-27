@@ -166,6 +166,30 @@ class WindowsFilesTests(unittest.TestCase):
         ):
             self.assertFalse(security.is_private(security.snapshot(file.value)))
 
+    def test_replacement_retains_inherited_and_protected_file_acls(self):
+        with win.walk(self.shared) as directory:
+            for name, descriptor in (
+                (self.note.name, None),
+                ("protected.txt", security.private_descriptor()),
+            ):
+                with self.subTest(name=name):
+                    with win.child(
+                        directory, name, create=descriptor is not None, security=descriptor
+                    ) as original:
+                        before = security.snapshot(original.value)
+                    with win.child(
+                        directory,
+                        name + ".stage",
+                        write=True,
+                        create=True,
+                        security=security.private_descriptor(),
+                    ) as staged:
+                        security.restore_dacl(staged.value, before)
+                        self.assertEqual(
+                            security.to_sddl(security.snapshot(staged.value)),
+                            security.to_sddl(before),
+                        )
+
     def test_null_or_foreign_owner_acl_is_not_private(self):
         for sddl in ("O:SYD:P(A;;FA;;;SY)", f"O:{security.user_sid()}D:NO_ACCESS_CONTROL"):
             with self.subTest(sddl=sddl):
