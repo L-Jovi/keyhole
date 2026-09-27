@@ -260,6 +260,38 @@ def restore_dacl(handle: int, value: bytes) -> None:
         raise ctypes.WinError(error)
 
 
+def file_dacl_signature(value: bytes):
+    """Compare file access without container-only inheritance bookkeeping."""
+    buffer = descriptor_buffer(value)
+    present, defaulted, pointer = wintypes.BOOL(), wintypes.BOOL(), ctypes.c_void_p()
+    checked(
+        advapi.GetSecurityDescriptorDacl(
+            buffer, ctypes.byref(present), ctypes.byref(pointer), ctypes.byref(defaulted)
+        )
+    )
+    if not present.value or not pointer.value:
+        raise ValueError("A recoverable file must have a non-null DACL.")
+    control, revision = wintypes.USHORT(), wintypes.DWORD()
+    checked(
+        advapi.GetSecurityDescriptorControl(buffer, ctypes.byref(control), ctypes.byref(revision))
+    )
+    acl = Acl.from_address(pointer.value)
+    entries = []
+    for index in range(acl.count):
+        entry = ctypes.c_void_p()
+        checked(advapi.GetAce(pointer, index, ctypes.byref(entry)))
+        header = AllowedAce.from_address(entry.value)
+        if header.size < 4 or entry.value + header.size > pointer.value + acl.size:
+            raise ValueError("Invalid file DACL entry.")
+        data = bytearray(ctypes.string_at(entry, header.size))
+        # Files have no children. SetSecurityInfo removes OI/CI/NP and records
+        # auto-inheritance. Preserve every effective right, SID, ACE order,
+        # inherited/inherit-only flag and protection against parent changes.
+        data[1] &= ~0x07
+        entries.append(bytes(data))
+    return owner(value), control.value & SE_DACL_PROTECTED, tuple(entries)
+
+
 advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [
     ctypes.c_void_p,
     wintypes.DWORD,

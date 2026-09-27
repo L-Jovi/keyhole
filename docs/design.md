@@ -83,7 +83,9 @@ A mutation runs under the same lock as grant changes:
 Moves and copies are two single-file steps, not a multi-file transaction; the journal makes an interrupted
 step visible and repairable rather than atomic. A UTF-8 BOM and CRLF line endings are preserved.
 POSIX preserves mode bits, but not ACLs or extended attributes. Windows retains the owned file's DACL
-and read-only attribute; mutation refuses read-only, encrypted, compressed or sparse files and files
+access entries, their order and protection against parent inheritance. The OS can normalize automatic
+inheritance bookkeeping and child-only flags on files. The read-only attribute is retained; mutation
+refuses read-only, encrypted, compressed or sparse files and files
 with named alternate streams. Other extended metadata and the old file identity are not preserved.
 Windows flushes file contents before publication but has no equivalent directory-fsync guarantee;
 process-interruption recovery tests do not establish sudden-power-loss durability.

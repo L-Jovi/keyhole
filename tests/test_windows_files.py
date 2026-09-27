@@ -186,9 +186,32 @@ class WindowsFilesTests(unittest.TestCase):
                     ) as staged:
                         security.restore_dacl(staged.value, before)
                         self.assertEqual(
-                            security.to_sddl(security.snapshot(staged.value)),
-                            security.to_sddl(before),
+                            security.file_dacl_signature(security.snapshot(staged.value)),
+                            security.file_dacl_signature(before),
                         )
+
+    def test_file_acl_comparison_retains_every_effective_access_boundary(self):
+        sid = security.user_sid()
+
+        def signature(sddl):
+            return security.file_dacl_signature(security.descriptor_from_sddl(sddl))
+
+        original = signature(f"O:{sid}D:P(A;OICI;FA;;;{sid})(A;;GR;;;SY)")
+        self.assertEqual(original, signature(f"O:{sid}D:PAI(A;;FA;;;{sid})(A;;GR;;;SY)"))
+        for changed in (
+            f"O:SYD:P(A;;FA;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:(A;;FA;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:P(A;;GR;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:P(D;;FA;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:P(A;IO;FA;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:P(A;ID;FA;;;{sid})(A;;GR;;;SY)",
+            f"O:{sid}D:P(A;;FA;;;WD)(A;;GR;;;SY)",
+            f"O:{sid}D:P(A;;GR;;;SY)(A;;FA;;;{sid})",
+        ):
+            with self.subTest(acl=changed):
+                self.assertNotEqual(original, signature(changed))
+        with self.assertRaises(ValueError):
+            signature(f"O:{sid}D:NO_ACCESS_CONTROL")
 
     def test_null_or_foreign_owner_acl_is_not_private(self):
         for sddl in ("O:SYD:P(A;;FA;;;SY)", f"O:{security.user_sid()}D:NO_ACCESS_CONTROL"):

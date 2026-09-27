@@ -148,8 +148,10 @@ Use `status --redact` when asking for help, rather than posting the full state o
 | ChatGPT cannot find the tunnel | Check its workspace association and the selecting user's Tunnels Read + Use permission. A key alone does not associate a workspace. |
 | Sample exists after an interrupted setup | Keep it. Use the exact retry command printed by setup, or explicitly open it as `demo`; do not delete it to bypass the prompt. |
 
-Windows preserves the owned file's DACL, read-only attribute, BOM and line endings during supported
-edits. Other extended metadata and the old file identity are not preserved. Recovery tests cover process
+Windows preserves the owned file's DACL access entries, their order and inheritance protection, plus
+the read-only attribute, BOM and line endings during supported edits. Windows may normalize automatic
+inheritance bookkeeping and flags that apply only to child objects, since files have no children.
+Other extended metadata and the old file identity are not preserved. Recovery tests cover process
 interruption, not sudden power loss. Parsers run with your OS permissions; their Job Object limits are
 not a filesystem or network sandbox.
 

@@ -154,10 +154,25 @@ def apply_permissions(fd, image):
         os.fchmod(fd, image["mode"] & 0o777)
 
 
+def same_acl(a, b):
+    left, right = a.get("windows_acl"), b.get("windows_acl")
+    if left == right:
+        return True
+    if WINDOWS and a["kind"] == b["kind"] == "file" and left and right:
+        return security.file_dacl_signature(
+            security.descriptor_from_sddl(left)
+        ) == security.file_dacl_signature(security.descriptor_from_sddl(right))
+    return False
+
+
 def check_mutable(name, *, directory):
     if WINDOWS:
         with win.child(handle(directory), name, write=True) as source:
             win.mutation_supported(source)
+            try:
+                security.file_dacl_signature(security.snapshot(source.value))
+            except ValueError as exc:
+                raise OSError("The file's DACL cannot be safely restored.") from exc
 
 
 def mkdir(path, mode=0o700, *, dir_fd=None):

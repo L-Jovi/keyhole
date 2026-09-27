@@ -88,7 +88,7 @@ def public_image(image):
 def same(a, b):
     return (
         public_image(a) == public_image(b)
-        and a.get("windows_acl") == b.get("windows_acl")
+        and fileio.same_acl(a, b)
         and (
             a["kind"] != "directory" or not b.get("identity") or a.get("identity") == b["identity"]
         )
