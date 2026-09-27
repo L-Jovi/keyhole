@@ -8,13 +8,19 @@ a **Refresh**.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
+
 ### Added
 
 - Resumable terminal setup with optional SHA-256-verified official client installation, saved client
   paths, explicit read-only sample creation, and `--no-browser` / `--update-client` options.
 - `status --human` for next steps and `status --redact` for allowlisted issue reports.
 - Required Ubuntu 22.04/24.04 Python 3.11–3.14 checks, wheel/sdist/tool-install tests, real official-client
-  download checks and a separate non-admin Windows feasibility probe. These do not expand platform support.
+  download checks and a separate non-admin Windows feasibility probe. Windows remains unsupported.
+- Ubuntu x86_64 support, with a real Ubuntu 24.04 official Tunnel → ChatGPT read, read-only refusal,
+  edit, restore and closed-access acceptance on 2026-09-27. Ubuntu 22.04 has automated coverage.
 - A manually gated Trusted Publishing workflow and maintainer instructions; no PyPI publication is implied.
 - Related-project comparison and explicit platform acceptance criteria.
 - A 59-second walkthrough, short GIF and static preview from real ChatGPT read/edit/restore/close
@@ -27,11 +33,11 @@ a **Refresh**.
 - Native client failure bodies are withheld from CLI output to avoid echoing secrets or private paths.
   Linux permission errors no longer suggest macOS settings.
 
-### Existing unreleased additions
+### Changed
 
 - Glama maintainer metadata and a disposable, read-only evaluation container using the existing stdio
   server. CI checks the real tool schemas, synthetic reads and permission boundaries in Linux Docker.
-  This is a directory evaluation fixture, not a new installation method or Linux support claim.
+  This is a directory evaluation fixture, not a new installation method or end-to-end proof.
   Production tools and dependencies are unchanged; no ChatGPT app Refresh is needed.
 
 ## [0.3.2] - 2026-09-26

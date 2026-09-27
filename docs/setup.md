@@ -1,16 +1,18 @@
 # Your first file in ChatGPT
 
-> This guide describes the upcoming setup wizard on `main`. The published **v0.3.2** wheel does not
-> contain it yet: use the [v0.3.2 setup guide](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md)
-> for that release. PyPI publication is pending. Do not install the unrelated PyPI package `keyhole`.
+> The commands on this page require **Keyhole 0.4.0 or later**. Check the
+> [published versions](https://github.com/L-Jovi/keyhole/releases) before installing; for 0.3.2, use
+> its [versioned setup guide](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md).
+> Do not install the unrelated PyPI package `keyhole`.
 
 Follow this page from top to bottom. The goal is one real ChatGPT read of a fictional note in a folder
 you deliberately shared. No personal documents are needed to try it.
 
 ## 1. Check access before installing
 
-- **A Mac.** Apple silicon on macOS 15.6/15.7.7 is verified. Intel and older macOS are untested.
-  Linux validation is in progress; Windows is unsupported. See [platform evidence](platforms.md).
+- **macOS or Ubuntu Linux.** Apple silicon on macOS 15.6/15.7.7 and Ubuntu 24.04 x86_64 have real
+  ChatGPT acceptance. Ubuntu 22.04 has automated coverage; Intel Macs, older macOS, other Linux
+  distributions and Linux ARM are untested. Windows is unsupported. See [platform evidence](platforms.md).
 - **ChatGPT web with Developer mode.** Tested with Pro in Chat mode; other eligible plans and fresh-account
   onboarding are untested here. A workspace administrator may need to grant access.
 - **OpenAI Platform tunnel permissions.** Creating a tunnel needs **Tunnels: Read + Manage**; the runtime
@@ -23,7 +25,8 @@ Keyhole cannot enable these permissions for you.
 
 ## 2. Install Keyhole
 
-If you already have `uv`, skip its installation. Otherwise use Homebrew (`brew install uv`) or the
+If you already have `uv`, skip its installation. On macOS you can use Homebrew (`brew install uv`);
+on either macOS or Linux you can use the
 [official standalone installer](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh
@@ -32,16 +35,19 @@ export PATH="$HOME/.local/bin:$PATH"
 uv --version
 ```
 
-For the published release, use the **wheel link on the
-[release page](https://github.com/L-Jovi/keyhole/releases/latest)** and its versioned setup guide.
-The next release will provide this wizard. Maintainers can test it from a reviewed source checkout:
+Install the published package:
 
 ```sh
-uv tool install .
+uv tool install keyhole-mcp
 export PATH="$HOME/.local/bin:$PATH"
 keyhole --version
 keyhole setup
 ```
+
+If PyPI is unavailable, replace `keyhole-mcp` in the install command with the exact `.whl` URL from
+the [release page](https://github.com/L-Jovi/keyhole/releases). Check that the selected release is
+0.4.0 or newer before using this guide. A release wheel needs no Git or development toolchain.
+Maintainers testing an unreleased, reviewed checkout can use `uv tool install .` instead.
 
 `uv` supplies Python when needed and isolates dependencies. The command is normally in `~/.local/bin`;
 Homebrew itself uses its own prefix. If `uv` uses a custom bin directory, use `uv tool dir --bin` to find it.

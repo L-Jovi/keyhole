@@ -6,7 +6,8 @@ not mean the application works on that platform. Updated 2026-09-27.
 | Platform | Checks provided by this change | Support statement |
 | --- | --- | --- |
 | macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
-| Ubuntu 22.04/24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download and real Linux Docker MCP fixture passed | Experimental until a real Linux-hosted ChatGPT workflow is accepted |
+| Ubuntu 24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download, Linux Docker fixture and real official Tunnel → ChatGPT read/edit/restore/close passed | Supported; full ChatGPT acceptance used Python 3.12 |
+| Ubuntu 22.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download passed | Supported with automated coverage; the account-based ChatGPT session ran on 24.04 |
 | Windows Server 2025 | Help/version/unsupported response and separate standard-user NTFS feasibility probe passed | Unsupported; the probe is not a shipped filesystem backend |
 | Windows 11 desktop | No completed acceptance | Unsupported |
 
@@ -19,7 +20,36 @@ passed all 21 jobs: 12 OS/Python regression jobs, six artifact/client-install jo
 fixture, the Windows refusal check and the Windows feasibility probe. The local
 [ChatGPT demonstration](demo.md) supplies separate macOS end-to-end evidence.
 
-## Linux acceptance before promotion
+## Linux ChatGPT acceptance: 2026-09-27
+
+[Run 36293869254](https://github.com/L-Jovi/keyhole/actions/runs/36293869254), commit
+`f44cef9e349abc0ea540d7b0c2c5f5ce94871618`, installed the built 0.4.0 wheel and official client 0.0.14
+on an Ubuntu 24.04 x86_64 runner. The workflow used Python 3.12; its fixture report records 3.12.3 and
+Linux kernel 6.17.0-1022-azure. It used a dedicated tunnel and a one-day restricted runtime key, with no
+personal files or production Mac runtime state.
+
+The real ChatGPT web conversation verified:
+
+- A fresh read returned all 191 bytes of the synthetic note and its SHA-256.
+- One actual write under the read-only grant returned `read_only`.
+- After the runner's explicit local `rw` grant, one edit committed (191 → 213 bytes), followed by a
+  committed restore (213 → 191 bytes). A fresh read matched the original SHA-256.
+- After closing the last workspace, one new read returned HTTP 404 / `tunnel_client_not_connected`,
+  without file content. The result took about 2 minutes 50 seconds; this is a disconnected-tunnel
+  response, not a workspace permission error.
+
+The runner independently verified both journal receipts, restored bytes, shutdown and cleanup. Its
+`linux-chatgpt-acceptance` artifact deliberately retains `fixture_only: true` and
+`full_chatgpt_acceptance: false`: the job cannot observe the ChatGPT UI. The manual observations above
+were verified separately and their synthetic screenshots and transcript retained by the maintainer.
+The raw runner report was not rewritten to imply automatic end-to-end coverage.
+
+This validates the installed candidate from the stated commit. The workflow did not retain that wheel's
+SHA-256, so it is not byte-identity evidence for a later rebuilt or published distribution. The publishing
+workflow separately builds once and verifies the same artifacts before uploading. No clean Linux desktop,
+fresh OpenAI account, Linux ARM or other distribution was tested by this session.
+
+## Repeat Linux acceptance
 
 Use a disposable Linux environment and its own Platform tunnel/key, with only synthetic notes. Do not
 serve the Mac's active tunnel from another machine. Secrets belong only in a trusted manual acceptance

@@ -2,7 +2,7 @@
 name = "keyhole-mcp"
 dynamic = ["version"]
 description = "Let ChatGPT read, and carefully edit, only the local folders you choose - through OpenAI's Secure MCP Tunnel, with no shell and no public port."
-readme = "README.md"
+readme = "docs/package.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
@@ -14,6 +14,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

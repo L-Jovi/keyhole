@@ -10,7 +10,7 @@ from . import __version__
 from .errors import KeyholeError
 
 UNSUPPORTED_PLATFORM = (
-    "Keyhole runs on macOS. Windows is not supported: Keyhole's folder boundary is built on POSIX "
+    "Keyhole runs on macOS and Linux. Windows is not supported: Keyhole's folder boundary is built on POSIX "
     "file APIs (openat with O_NOFOLLOW) that Windows does not have. Nothing was changed."
 )
 
@@ -19,7 +19,7 @@ def platform_problem() -> str | None:
     if sys.platform in ("win32", "cygwin"):
         return UNSUPPORTED_PLATFORM
     if sys.platform not in ("darwin", "linux"):
-        return "This OS is unsupported. Keyhole is verified on macOS; Linux acceptance is pending. Nothing was changed."
+        return "This OS is unsupported. Keyhole is verified on macOS and Ubuntu Linux. Nothing was changed."
     return None
 
 

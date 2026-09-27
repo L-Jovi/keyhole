@@ -3,14 +3,15 @@
 First-time users: follow [Your first file in ChatGPT](setup.md) instead. These operations are optional after
 setup. Commands below assume the default state directory and the release named in the current release notes.
 
-New setup/status options below describe the upcoming release on `main`; v0.3.2 users should use its
+The setup/status options below require 0.4.0 or later; v0.3.2 users should use its
 [versioned maintenance guide](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/maintenance.md).
 
 ## Upgrades
 
-- **Keyhole:** close the folders you are sharing, install the new release's wheel, then resume only the
-  folders you intend to reopen. Use the exact wheel URL on the
-  [release page](https://github.com/L-Jovi/keyhole/releases). Do not use `pip install keyhole`: that PyPI
+- **Keyhole:** close the folders you are sharing, run `uv tool upgrade keyhole-mcp`, then resume only the
+  folders you intend to reopen. If you installed a release wheel directly, use `uv tool install --reinstall`
+  with the exact new wheel URL on the [release page](https://github.com/L-Jovi/keyhole/releases).
+  Do not use `pip install keyhole`: that PyPI
   name belongs to an unrelated project.
 - **Distribution rename:** releases from 0.3.2 use `keyhole-mcp`; the CLI and Python module remain `keyhole`.
   When upgrading from 0.3.1, first run `uv tool uninstall keyhole`, then `uv tool install WHEEL_URL` with the
@@ -44,7 +45,7 @@ and need no separate PATH entry.
 State paths must not contain symbolic links. The state directory and its parent folders cannot be shared.
 Keep **one active Keyhole installation and state directory per OS user**: the official runtime alias is
 `keyhole`, so custom state directories are alternatives, not independent simultaneous instances. On another
-Mac, create its own tunnel and key; two machines must not serve the same tunnel.
+computer, create its own tunnel and key; two machines must not serve the same tunnel.
 
 For an existing Local Evidence Bridge installation, retain its established state directory and pass it
 explicitly. Changing the CLI name does not migrate local grants, history or credentials. Never copy a key
