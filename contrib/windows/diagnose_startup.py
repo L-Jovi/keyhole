@@ -38,7 +38,9 @@ def main():
             output = result.stdout
             status = result.returncode
         except subprocess.TimeoutExpired as exc:
-            output = (exc.stdout or b"").decode("utf-8", errors="replace")
+            output = exc.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
             status = "timeout"
         # The script prints only fixed markers and a boot timestamp, never env values.
         print(
