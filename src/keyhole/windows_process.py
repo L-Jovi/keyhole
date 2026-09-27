@@ -29,7 +29,7 @@ def query(script):
     modules = executable.parent / "Modules"
     imports = " ".join(
         "Import-Module -Name '" + str(modules / name / (name + ".psd1")).replace("'", "''") + "';"
-        for name in ("CimCmdlets", "Microsoft.PowerShell.Utility")
+        for name in ("Microsoft.PowerShell.Utility", "CimCmdlets")
     )
     command = (
         "$ErrorActionPreference='Stop'; "
