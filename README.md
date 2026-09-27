@@ -2,13 +2,16 @@
 
 Let ChatGPT read, and carefully edit, only the local folders you choose. No shell, no public port.
 
-![A real ChatGPT conversation reading a synthetic local file through Keyhole](docs/images/read-file.png)
+[![Real ChatGPT results: read a note, edit its checklist, restore it and close access](https://raw.githubusercontent.com/L-Jovi/keyhole/main/docs/images/keyhole-demo.gif)](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)
 
-Open a folder locally, use it in ChatGPT, and close it when you finish. This screenshot uses fictional
-content; the [first-use guide](docs/setup.md) walks through a read-only notes example.
+**[Watch the 59-second walkthrough](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)**
+· [Static preview](https://github.com/L-Jovi/keyhole/blob/main/docs/images/keyhole-demo.png) · [What was verified](https://github.com/L-Jovi/keyhole/blob/main/docs/demo.md)
+
+Real ChatGPT responses and checked local files, edited into a walkthrough with fictional notes. Setup and
+waiting are omitted; response text is unchanged. Open read-only → allow an edit → restore → close access.
 
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/L-Jovi/keyhole/blob/main/LICENSE)
 
 Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac, plus a command-line
 tool, `keyhole`. You open a folder with `keyhole open`; ChatGPT on the web can then read it through OpenAI's
@@ -30,13 +33,13 @@ Unofficial project; not affiliated with OpenAI.
   your OS permissions; they are not an OS sandbox.
 
 The connection uses OpenAI's official client. It exposes no public endpoint and no remote shell.
-Close the last folder and the tunnel stops. [Compare related projects](docs/alternatives.md).
+Close the last folder and the tunnel stops. [Compare related projects](https://github.com/L-Jovi/keyhole/blob/main/docs/alternatives.md).
 
 ## Start here
 
 **[Install the published v0.3.2 release →](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md)**
 
-The [upcoming setup wizard](docs/setup.md) adds automatic verified client installation, resumable setup
+The [upcoming v0.4.0 setup wizard](https://github.com/L-Jovi/keyhole/blob/main/docs/setup.md) adds automatic verified client installation, resumable setup
 and readable diagnostics. It is currently in source; the v0.3.2 wheel does not include these changes.
 PyPI publication is pending, so `uv tool install keyhole-mcp` is not advertised as a working install yet.
 
@@ -61,7 +64,7 @@ stays under your local control.
 | --- | --- |
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
-| Linux | Experimental. Required Ubuntu/Python CI and artifact checks are defined; real Linux-hosted ChatGPT acceptance is still pending. [Evidence and criteria](docs/platforms.md). |
+| Linux | Experimental. Ubuntu 22.04/24.04 Python 3.11–3.14 CI and artifact checks passed; real Linux-hosted ChatGPT acceptance is still pending. [Evidence and criteria](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
 | Windows | Unsupported. CI checks the refusal message and separate NTFS feasibility probes; neither establishes Windows support. |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
@@ -161,7 +164,7 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
 - Hiding by file name is not secret detection: a token inside a shared source file is readable while the
   folder is open, and anything already sent to ChatGPT cannot be recalled by closing the folder.
 
-Threat model, what is out of scope, and how to report a vulnerability: [SECURITY.md](SECURITY.md).
+Threat model, what is out of scope, and how to report a vulnerability: [SECURITY.md](https://github.com/L-Jovi/keyhole/blob/main/SECURITY.md).
 
 ## Commands and tools
 
@@ -193,8 +196,8 @@ Commands print JSON by default; `"ok": false` comes with an `error.code` you can
 | `list_changes`, `restore_change` | Recent changes and undo |
 
 The five read tools are marked read-only and the seven write tools destructive, which is what ChatGPT's
-write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md). Upgrades, custom paths and
-uninstall: [maintenance](docs/maintenance.md).
+write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](https://github.com/L-Jovi/keyhole/blob/main/docs/reference.md). Upgrades, custom paths and
+uninstall: [maintenance](https://github.com/L-Jovi/keyhole/blob/main/docs/maintenance.md).
 
 ## Troubleshooting
 
@@ -235,10 +238,10 @@ explains the boundaries. Link that directory into `~/.codex/skills/` (the layout
 - Tracked: the server and CLI (`src/keyhole/`), tests, docs, the Codex skill. Runtime state, keys, grants and
   recovery history live in `~/.config/keyhole/` and are never part of the repository.
 - Maintained by [Jovi](https://github.com/L-Jovi); best-effort, single maintainer. Bugs and ideas:
-  [issues](https://github.com/L-Jovi/keyhole/issues). How to work on it: [CONTRIBUTING.md](CONTRIBUTING.md).
-  Changes: [CHANGELOG.md](CHANGELOG.md).
-- Platform evidence: [validation](docs/platforms.md). Release maintainers: [Trusted Publishing](docs/publishing.md).
+  [issues](https://github.com/L-Jovi/keyhole/issues). How to work on it: [CONTRIBUTING.md](https://github.com/L-Jovi/keyhole/blob/main/CONTRIBUTING.md).
+  Changes: [CHANGELOG.md](https://github.com/L-Jovi/keyhole/blob/main/CHANGELOG.md).
+- Platform evidence: [validation](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). Release maintainers: [Trusted Publishing](https://github.com/L-Jovi/keyhole/blob/main/docs/publishing.md).
 
 ## License
 
-[MIT](LICENSE).
+[MIT](https://github.com/L-Jovi/keyhole/blob/main/LICENSE).

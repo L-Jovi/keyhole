@@ -138,7 +138,8 @@ def main():
         closed = cli("close", "LinuxDemo")
         report["shutdown_confirmed"] = closed.get("shutdown_confirmed") is True
         window(
-            "closed: require a NEW ChatGPT tool call to fail; earlier text is still in the chat", 90
+            "closed: require a NEW ChatGPT tool call to fail; earlier text is still in the chat",
+            240,
         )
         report["manual_evidence_required"] = [
             "ChatGPT read",

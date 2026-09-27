@@ -17,6 +17,8 @@ a **Refresh**.
   download checks and a separate non-admin Windows feasibility probe. These do not expand platform support.
 - A manually gated Trusted Publishing workflow and maintainer instructions; no PyPI publication is implied.
 - Related-project comparison and explicit platform acceptance criteria.
+- A 59-second walkthrough, short GIF and static preview from real ChatGPT read/edit/restore/close
+  results with fictional notes. Setup and waiting are explicitly omitted.
 
 ### Fixed
 

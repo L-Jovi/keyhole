@@ -5,14 +5,19 @@ not mean the application works on that platform. Updated 2026-09-27.
 
 | Platform | Checks provided by this change | Support statement |
 | --- | --- | --- |
-| macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; existing ChatGPT acceptance on Apple silicon 15.6/15.7.7 | Supported on the verified Apple silicon machines; Intel/older macOS untested |
-| Ubuntu 22.04/24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download; existing real Linux Docker MCP fixture | Experimental until these jobs pass and a real Linux-hosted ChatGPT workflow is accepted |
-| Windows Server 2025 | Help/version/unsupported response; separate standard-user NTFS feasibility probe | Unsupported; the probe is not a shipped filesystem backend |
+| macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
+| Ubuntu 22.04/24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download and real Linux Docker MCP fixture passed | Experimental until a real Linux-hosted ChatGPT workflow is accepted |
+| Windows Server 2025 | Help/version/unsupported response and separate standard-user NTFS feasibility probe passed | Unsupported; the probe is not a shipped filesystem backend |
 | Windows 11 desktop | No completed acceptance | Unsupported |
 
 Workflow definitions alone are not results; inspect the [Actions run](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 for the exact commit. Hosted runners already contain development tools. Artifact tests do not establish
 that a fresh consumer machine, account eligibility or every dependency version has been tested.
+
+[Run 36291310205](https://github.com/L-Jovi/keyhole/actions/runs/36291310205), commit `01054bc`,
+passed all 21 jobs: 12 OS/Python regression jobs, six artifact/client-install jobs, the Linux Docker
+fixture, the Windows refusal check and the Windows feasibility probe. The local
+[ChatGPT demonstration](demo.md) supplies separate macOS end-to-end evidence.
 
 ## Linux acceptance before promotion
 
@@ -37,7 +42,7 @@ its own `KEYHOLE_ACCEPTANCE_TUNNEL` and `KEYHOLE_ACCEPTANCE_KEY` secrets. Config
 maintainer's explicit authorization; never reuse the Mac's key or tunnel.
 
 After the wheel and client are installed, the session provides four minutes read-only, four minutes rw,
-then 90 seconds closed. Watch the live job log for each phase and use the private Linux ChatGPT app with
+then four minutes closed. Watch the live job log for each phase and use the private Linux ChatGPT app with
 workspace `LinuxDemo` and `notes.md`. These timed local CLI changes are authorized by dispatching the
 manual workflow; ChatGPT cannot advance the phases. The job checks retained edit/restore receipts and
 the restored bytes, and revokes access in cleanup. Only a redacted report is uploaded. A green job still
@@ -60,6 +65,12 @@ open, even with `FILE_SHARE_DELETE`. The probe records this outcome and verifies
 unchanged before testing replacement after handle closure. A passing feasibility job may therefore
 contain `supported: false` for this primitive. Closing identity-check handles to make a test pass is not
 a proposed Keyhole fix; a native backend must preserve the race protection during replacement.
+
+The recorded run used Windows Server 2025 build 26100 and Python 3.12.10. It verified standard-user
+execution, ACL denial to another user, case-alias file identity, hard-link counts, symlink/reparse
+detection, a cross-process lock and a recovery record surviving process exit. Python `os.replace`
+returned WinError 5 with the destination handle held; both files remained unchanged. Replacement after
+closing the handles succeeded. The report is the run's `windows-feasibility` artifact.
 
 Remaining work includes ACL ownership, special namespaces/alternate streams/short names, parser handle
 passing, boot identity and process-tree cleanup. Process-exit recovery is not power-loss durability proof.
