@@ -26,6 +26,7 @@ FILE_READ_ATTRIBUTES = 0x0080
 FILE_WRITE_ATTRIBUTES = 0x0100
 DELETE = 0x00010000
 READ_CONTROL = 0x00020000
+WRITE_DAC = 0x00040000
 SYNCHRONIZE = 0x00100000
 FILE_SHARE_READ = 1
 FILE_SHARE_WRITE = 2
@@ -247,8 +248,20 @@ def volume(anchor: str) -> Handle:
         raise
 
 
-def child(parent: Handle, name: str, *, directory=False, write=False, delete=False, create=False):
+def child(
+    parent: Handle,
+    name: str,
+    *,
+    directory=False,
+    write=False,
+    delete=False,
+    create=False,
+    security: bytes | None = None,
+):
     component(name)
+    if security is not None and not create:
+        raise ValueError("An initial ACL is only valid when creating a new entry.")
+    descriptor = ctypes.create_string_buffer(security) if security is not None else None
     buffer = ctypes.create_unicode_buffer(name)
     size = len(name.encode("utf-16-le"))
     string = UnicodeString(size, size + 2, ctypes.cast(buffer, wintypes.LPWSTR))
@@ -257,7 +270,7 @@ def child(parent: Handle, name: str, *, directory=False, write=False, delete=Fal
         parent.value,
         ctypes.pointer(string),
         OBJ_CASE_INSENSITIVE,
-        None,
+        ctypes.cast(descriptor, ctypes.c_void_p) if descriptor is not None else None,
         None,
     )
     desired = READ_CONTROL | SYNCHRONIZE | FILE_READ_ATTRIBUTES
@@ -266,6 +279,8 @@ def child(parent: Handle, name: str, *, directory=False, write=False, delete=Fal
         desired |= FILE_WRITE_DATA | FILE_WRITE_ATTRIBUTES
     if delete:
         desired |= DELETE
+    if create:
+        desired |= WRITE_DAC
     value, status = wintypes.HANDLE(), IoStatusBlock()
     check_status(
         ntdll.NtCreateFile(

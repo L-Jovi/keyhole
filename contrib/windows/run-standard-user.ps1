@@ -34,6 +34,7 @@ try {
     New-Item -ItemType Directory -Path $package | Out-Null
     Copy-Item (Join-Path $repository 'src/keyhole/__init__.py') $package
     Copy-Item (Join-Path $repository 'src/keyhole/windows_files.py') $package
+    Copy-Item (Join-Path $repository 'src/keyhole/windows_security.py') $package
     $nativeTests = Join-Path $work 'test_windows_files.py'
     Copy-Item (Join-Path $repository 'tests/test_windows_files.py') $nativeTests
     $native = Start-Process -FilePath $python -ArgumentList "`"$nativeTests`" -v" -Credential $credential `

@@ -11,6 +11,7 @@ from pathlib import Path
 
 if sys.platform == "win32":
     from keyhole import windows_files as win
+    from keyhole import windows_security as security
 
 
 @unittest.skipUnless(sys.platform == "win32", "requires native Windows")
@@ -128,6 +129,47 @@ class WindowsFilesTests(unittest.TestCase):
         for path in ("relative", "C:relative", "\\\\server\\share", "\\\\?\\C:\\", "\\\\.\\C:\\"):
             with self.subTest(path=path), self.assertRaises(ValueError), win.walk(path):
                 self.fail("Unexpected namespace accepted.")
+
+    def test_private_acl_is_present_at_creation_and_preserved(self):
+        descriptor = security.private_descriptor()
+        self.assertEqual(security.owner(descriptor), security.user_sid())
+        self.assertTrue(security.is_private(descriptor))
+        with (
+            win.walk(self.shared) as directory,
+            win.child(
+                directory,
+                "private.txt",
+                write=True,
+                create=True,
+                security=descriptor,
+            ) as file,
+        ):
+            before = security.snapshot(file.value)
+            self.assertTrue(security.is_private(before))
+            security.restore_dacl(file.value, before)
+            self.assertTrue(security.is_private(security.snapshot(file.value)))
+
+    def test_acl_allowing_other_users_is_not_private(self):
+        sid = security.user_sid()
+        descriptor = security.descriptor_from_sddl(f"O:{sid}D:P(A;;FA;;;{sid})(A;;GR;;;WD)")
+        self.assertEqual(security.owner(descriptor), sid)
+        self.assertFalse(security.is_private(descriptor))
+        with (
+            win.walk(self.shared) as directory,
+            win.child(
+                directory,
+                "public-fixture.txt",
+                write=True,
+                create=True,
+                security=descriptor,
+            ) as file,
+        ):
+            self.assertFalse(security.is_private(security.snapshot(file.value)))
+
+    def test_null_or_foreign_owner_acl_is_not_private(self):
+        for sddl in ("O:SYD:P(A;;FA;;;SY)", f"O:{security.user_sid()}D:NO_ACCESS_CONTROL"):
+            with self.subTest(sddl=sddl):
+                self.assertFalse(security.is_private(security.descriptor_from_sddl(sddl)))
 
 
 if __name__ == "__main__":
