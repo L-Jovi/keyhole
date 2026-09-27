@@ -3,7 +3,8 @@
 > Native Windows support is under review in this branch. The published 0.4.0 release refuses Windows.
 > The candidate requires a reviewed wheel; do not use `uv tool install keyhole-mcp` to obtain this
 > unreleased implementation. See [platform evidence](platforms.md) for completed checks and remaining
-> acceptance. The steps below are the candidate's intended first-time path.
+> release status. Real ChatGPT acceptance passed on hosted Windows 11 ARM with x64 Python on
+> 2026-09-27. The steps below are the candidate's intended first-time path.
 
 Keyhole lets your private ChatGPT app read the local folders you choose. New folders are read-only.
 You can explicitly allow hash-checked text edits and restore retained changes. It does not give ChatGPT

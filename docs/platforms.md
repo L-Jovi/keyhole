@@ -8,8 +8,8 @@ not mean the application works on that platform. Updated 2026-09-27.
 | macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
 | Ubuntu 24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download, Linux Docker fixture and real official Tunnel → ChatGPT read/edit/restore/close passed | Supported; full ChatGPT acceptance used Python 3.12 |
 | Ubuntu 22.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download passed | Supported with automated coverage; the account-based ChatGPT session ran on 24.04 |
-| Windows Server 2025 | Native candidate file, ACL, locking, parser, process and installer tests; expanded regression and artifact matrix under review | Not supported by the published 0.4.0 release; native acceptance pending |
-| Windows 11 ARM | Native candidate tested with x64 Python under emulation on a hosted Windows 11 runner | Native acceptance pending; this is not a physical consumer desktop test |
+| Windows Server 2025 | Native filesystem, ACL, locking, parser, process, MCP handshake and artifact checks across x64 Python 3.11–3.14 passed | Automated candidate coverage; not included in the published 0.4.0 release |
+| Windows 11 ARM | The same x64 Python matrix under emulation, plus a real official Tunnel → ChatGPT read, read-only refusal, edit, restore and closed-read refusal as a standard user | Candidate acceptance passed on a hosted Windows 11 machine; no physical consumer desktop was tested |
 
 Workflow definitions alone are not results; inspect the [Actions run](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 for the exact commit. Hosted runners already contain development tools. Artifact tests do not establish
@@ -49,7 +49,7 @@ SHA-256, so it is not byte-identity evidence for a later rebuilt or published di
 workflow separately builds once and verifies the same artifacts before uploading. No clean Linux desktop,
 fresh OpenAI account, Linux ARM or other distribution was tested by this session.
 
-## Repeat Linux acceptance
+## Repeat account-based acceptance
 
 Use a disposable Linux environment and its own Platform tunnel/key, with only synthetic notes. Do not
 serve the Mac's active tunnel from another machine. Secrets belong only in a trusted manual acceptance
@@ -59,8 +59,9 @@ run, never in a pull request from an untrusted branch.
 2. Run setup from the installed artifact; verify the official client path/version and read-only demo.
 3. In a real ChatGPT conversation, read the note and its hash; verify read-only write refusal.
 4. Explicitly grant `rw`, edit, inspect local bytes, restore and compare the original hash.
-5. Close the demo and require a new read to fail. Confirm shutdown and remove disposable account
-   resources according to their owner's instructions.
+5. Close the demo and require a new read to fail. Confirm shutdown. Keep reusable test tunnels, apps
+   and protected GitHub environments if the owner intends to repeat acceptance. Revoke or replace
+   expired/superseded keys as needed; delete only resources confirmed to be retired.
 
 Retain the artifact hash, OS/architecture/Python/client versions, tool receipts and resulting file hashes.
 Redact ids and paths from public evidence. Only then change the README support row and package classifiers.
@@ -86,6 +87,10 @@ records the installed candidate wheel's SHA-256. It checks retained edit/restore
 the restored bytes, and revokes access in cleanup. Only a redacted report is uploaded. A green job still
 needs screenshots/tool receipts proving the three manual ChatGPT observations listed in the report.
 
+Retaining a test tunnel or app does not require keeping a runner connected. Use a fresh short-lived,
+restricted runtime key for a later session when the previous key has expired, and update that platform's
+environment secret. Do not extend a credential's lifetime merely to preserve the reusable test setup.
+
 ## Windows native candidate
 
 [PR #10](https://github.com/L-Jovi/keyhole/pull/10) implements a native NTFS backend. It walks paths with
@@ -96,8 +101,8 @@ destinations start private, while recovery keeps the original path's ACL. Raw AC
 are omitted from public change receipts. Files with named streams, encryption, compression, sparse or
 read-only attributes are refused for mutation rather than silently losing those properties.
 
-[Run 36299717378](https://github.com/L-Jovi/keyhole/actions/runs/36299717378), commit `c417aaf`, passed
-the then-current 22 jobs, including real standard-user native tests and the official Windows client
+[Run 36304537741](https://github.com/L-Jovi/keyhole/actions/runs/36304537741), commit `91609da`, passed
+all 30 jobs, including real standard-user native tests and the official Windows client
 download on Windows Server 2025 x64 and hosted Windows 11 ARM (x64 Python under emulation).
 Those tests cover directory escape, ACL privacy, aliases, separate-process locking, edits and restore,
 parser handle transfer, and cleanup limited to one state directory. They use synthetic files and no key.
@@ -106,12 +111,38 @@ The expanded Windows matrix runs Python 3.11–3.14 on both runners. It also exe
 handshakes, shared behavior regressions, candidate wheel/sdist installation and a fresh PowerShell PATH.
 The broader handshake checks exposed a PowerShell module-discovery stall under the SDK's minimal
 environment; the candidate now limits OS queries to the system module directory and tests that case.
-Inspect the latest PR checks for the current result, not only the earlier successful run above.
+Inspect the latest PR checks for any later changes to the candidate.
 
-**Still required before a support declaration:** a dedicated official Tunnel → ChatGPT session on the
-installed Windows candidate, recording a real read, read-only write refusal, edit, restore and a new read
-refused after close. Retain the candidate wheel hash and distinguish automated results from UI evidence.
-No existing Mac tunnel, key or personal folder should be used for this acceptance.
+### Windows ChatGPT acceptance: 2026-09-27
+
+[Run 36307822752](https://github.com/L-Jovi/keyhole/actions/runs/36307822752) installed the wheel built
+from `91609dadd3d04254b687b03ec6c1664dc5d7a76b` and official client 0.0.14. The runner was
+Windows 11 build 26200 on ARM, with x64 CPython 3.12.10 under emulation. Keyhole and the client ran as
+a normal, non-administrator local user. The dedicated tunnel, key and synthetic `WindowsDemo/notes.md`
+were separate from the Mac connection and personal folders.
+
+Candidate wheel SHA-256: `e439560bdad7b95afddfb2a7aeb2b8a023653bc838e0020023ede5103d34f1a8`.
+
+The real ChatGPT web conversation verified:
+
+- A new read returned all 191 bytes and the original SHA-256
+  `cc299cbd4b616388f1c544a9a4f62a011f2e37f991771bc0a20689fe39f18f45`.
+- An actual same-content write with the observed hash returned `read_only` while the local grant was ro.
+- After the runner explicitly granted rw, ChatGPT read again, changed three bullets into checkboxes,
+  and read back SHA-256 `c812d1de32ac19a2d1f46fbe6360ac263d57b8f4afccd7f496b9652f9b8cf32e`.
+- ChatGPT restored the recorded change and read again. The final hash matched the original exactly.
+- After local close, a **new** read returned `NOT_FOUND` with "Tunnel-client did not poll after this
+  request was enqueued" and no new file contents. The response took about one minute. This is a
+  disconnected-tunnel result, not an NTFS permission error.
+
+The runner independently verified both retained journal receipts, original bytes, shutdown and cleanup.
+Its `windows-chatgpt-acceptance` report keeps `fixture_only: true` and `full_chatgpt_acceptance: false`:
+the runner cannot observe ChatGPT. The manual transcript and screenshots were verified separately and
+retained by the maintainer; the raw report was not rewritten.
+
+**Release boundary:** this verifies the installed candidate identified above. Windows support is not
+part of the published 0.4.0 package. A later rebuilt release has different bytes and must pass its own
+artifact checks; it must not inherit this wheel hash.
 
 The [Windows setup guide](windows.md) covers PowerShell, PATH, x64 Python on ARM, ordinary NTFS folders,
 account setup and recovery. Native ARM Python, Windows 10, network shares, case-sensitive NTFS

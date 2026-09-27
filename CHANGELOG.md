@@ -14,11 +14,17 @@ The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh
 
 - Native Windows candidate: handle-relative NTFS access, private state ACLs, cross-process locking,
   recoverable text edits, parser handle transfer and process cleanup scoped to one state directory.
-  Official Tunnel and ChatGPT acceptance is still required before declaring Windows support.
+  Official Tunnel → ChatGPT read, read-only refusal, edit, restore and closed-read refusal passed on
+  hosted Windows 11 ARM with x64 Python as a standard user. This is not yet a published release.
 - Verified official Windows client bundles, PowerShell command hints and a separate Windows setup guide.
 - Standard-user Windows Server 2025 and Windows 11 ARM checks across x64 Python 3.11–3.14, including
   installed artifacts, real MCP SDK handshakes and console setup with hidden synthetic key input.
   The hosted ARM runner uses x64 Python emulation; native ARM Python is not part of this claim.
+
+### Changed
+
+- Replace the edited video, jump-numbered GIF and single-step preview with an ordered screenshot
+  example connecting local commands, real ChatGPT responses and verified on-disk file changes.
 
 ## [0.4.0] - 2026-09-27
 

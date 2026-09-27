@@ -2,13 +2,41 @@
 
 Let ChatGPT read, and carefully edit, only the local folders you choose. No shell, no public port.
 
-[![Real ChatGPT results: read a note, edit its checklist, restore it and close access](https://raw.githubusercontent.com/L-Jovi/keyhole/main/docs/images/keyhole-demo.gif)](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)
+**Example: turn a note on your computer into a TODO list, without uploading the file by hand.**
 
-**[Watch the 59-second walkthrough](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)**
-· [Static preview](https://github.com/L-Jovi/keyhole/blob/main/docs/images/keyhole-demo.png) · [What was verified](https://github.com/L-Jovi/keyhole/blob/main/docs/demo.md)
+**1. In your terminal, open one folder.** After [one-time setup](docs/setup.md), share an existing
+folder containing `notes.md`. It starts read-only; the second command explicitly allows editing:
 
-Real ChatGPT responses and checked local files, edited into a walkthrough with fictional notes. Setup and
-waiting are omitted; response text is unchanged. Open read-only → allow an edit → restore → close access.
+```sh
+keyhole open ./demo-notes --name KeyholeDemo
+keyhole access KeyholeDemo rw
+```
+
+**2. In ChatGPT, select your Keyhole app and ask:**
+
+> Read `notes.md` in `KeyholeDemo`, turn its three ideas into TODO checkboxes, and save the file.
+
+This is the real response from a session using fictional notes:
+
+![ChatGPT used Keyhole to edit the local notes.md, read it back, and return a recoverable change id](docs/images/demo-chatgpt-edit.jpg)
+
+**3. Back in your terminal, inspect the same file.**
+
+```sh
+cat ./demo-notes/notes.md
+```
+
+Its three ideas now contain checkboxes. These lines were checked on disk after the edit:
+
+```markdown
+- [ ] Read the field guide on Saturday.
+- [ ] Summarize the chapter about night skies.
+- [ ] Pack a notebook for Sunday's walk.
+```
+
+You can ask ChatGPT to restore the returned change id. When finished, run
+`keyhole close KeyholeDemo` to stop sharing that folder.
+[See the complete read → edit → restore → close example, with real screenshots](docs/demo.md).
 
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/keyhole-mcp.svg)](https://pypi.org/project/keyhole-mcp/)
@@ -71,7 +99,7 @@ stays under your local control.
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
 | Linux | Supported on Ubuntu x86_64. Real ChatGPT read/edit/restore/close verified on Ubuntu 24.04; Ubuntu 22.04/24.04 have Python 3.11–3.14 CI and artifact coverage. Other distributions and Linux ARM are untested. [Evidence and limits](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
-| Windows | The published 0.4.0 release is unsupported. A native NTFS backend is under review; see the [candidate Windows guide](docs/windows.md) and [acceptance status](docs/platforms.md#windows-native-candidate). Automated checks alone do not establish ChatGPT support. |
+| Windows | The native NTFS candidate passed real ChatGPT read/edit/restore/close on a hosted Windows 11 ARM machine using x64 Python. It is under review and is **not included in the published 0.4.0 release**. See the [candidate guide](docs/windows.md) and [evidence and limits](docs/platforms.md#windows-native-candidate). |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
 | Clean install | Release wheel tested with Git/Python developer-tool commands unavailable in a simulated environment; not a freshly erased Mac. |
@@ -165,8 +193,9 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
   `docs/*.md`). Matching ignores case and Unicode normalization.
 - ChatGPT can never modify Keyhole's own code or environment, the state directory, or shell startup files
   such as `.zshrc` and `.envrc`, whatever spelling of the path it uses.
-- Symbolic links, hard-linked files and special files are refused; every path is opened component by
-  component with `O_NOFOLLOW` and re-checked before and after each operation.
+- Symbolic links, hard-linked files and special files are refused. Paths are opened component by
+  component with `O_NOFOLLOW` on macOS/Linux or parent directory handles in the Windows candidate,
+  and re-checked before and after each operation.
 - Hiding by file name is not secret detection: a token inside a shared source file is readable while the
   folder is open, and anything already sent to ChatGPT cannot be recalled by closing the folder.
 

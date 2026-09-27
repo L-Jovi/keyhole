@@ -27,7 +27,7 @@ Verified scope: Apple-silicon macOS and Ubuntu x86_64; Python 3.11–3.14 in CI.
 was completed on macOS 15.7.7 and Ubuntu 24.04. Ubuntu 22.04 has automated coverage. Windows is not
 supported by this release. See [platform evidence](https://github.com/L-Jovi/keyhole/blob/v0.4.0/docs/platforms.md).
 
-[Watch the real demonstration](https://github.com/L-Jovi/keyhole/blob/v0.4.0/docs/media/keyhole-demo.mp4)
+[See the step-by-step demonstration](https://github.com/L-Jovi/keyhole/blob/main/docs/demo.md)
 or read the [tool and safety reference](https://github.com/L-Jovi/keyhole/blob/v0.4.0/docs/reference.md).
 Document parsers retain the user's OS permissions; process separation is not an OS sandbox.
 
