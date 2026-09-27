@@ -246,7 +246,7 @@ def lock(fd):
         try:
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         except OSError as exc:
-            if exc.winerror == 33 or exc.errno in (13, 36):
+            if getattr(exc, "winerror", None) == 33 or exc.errno in (13, 36):
                 raise BlockingIOError from exc
             raise
     else:

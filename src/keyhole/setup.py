@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import configure
 from . import file_ops as fileio
-from .client_install import asset, destination, install
+from .client_install import asset, client_name, destination, install
 from .diagnostics import human_status
 from .errors import KeyholeError, require
 from .filesystem import absolute_directory
@@ -83,7 +83,7 @@ def select_client(
             "Update your external client with its installer, then run setup --accept-client-version.",
         )
         release = asset()
-        if runtime.client == str(destination(store, release) / "tunnel-client"):
+        if runtime.client == str(destination(store, release) / client_name(release)):
             version = runtime.client_version()
             if version == release["version"]:
                 say(
@@ -239,7 +239,12 @@ def run(args) -> dict:
     runtime = NativeRuntime(store)
     status = Manager(store, runtime).status()
     say(human_status(status, store.command("setup")))
-    next_step = store.command("open", "/absolute/path/to/folder", "--name", "notes")
+    example_path = (
+        str(Path.home() / "Documents" / "notes")
+        if sys.platform == "win32"
+        else "/absolute/path/to/folder"
+    )
+    next_step = store.command("open", example_path, "--name", "notes")
     if yes("Create a new sample folder and share ONLY that new folder read-only?"):
         default = Path.home() / "KeyholeDemo"
         path = Path(ask(f"New demo folder [{default}]:") or str(default))

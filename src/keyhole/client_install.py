@@ -31,7 +31,8 @@ MAX_UNPACKED = 160 * 1024 * 1024
 def asset() -> dict:
     machine = platform.machine().lower()
     arch = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "amd64", "amd64": "amd64"}.get(machine)
-    target = f"{sys.platform}-{arch}"
+    system = "windows" if sys.platform == "win32" else sys.platform
+    target = f"{system}-{arch}"
     require(
         target in MANIFEST["assets"],
         "client_download_unavailable",
@@ -53,6 +54,10 @@ def asset() -> dict:
         "name": name,
         "url": f"https://github.com/openai/tunnel-client/releases/download/v{version}/{name}",
     }
+
+
+def client_name(release: dict) -> str:
+    return "tunnel-client.exe" if release["target"].startswith("windows-") else "tunnel-client"
 
 
 def destination(store: StateStore, release: dict) -> Path:
@@ -103,8 +108,8 @@ def download(release: dict, out) -> None:
 def extract(archive, directory: int, release: dict) -> None:
     stem = release["name"].removesuffix(".zip")
     expected = {
-        "tunnel-client",
-        "cloudflared",
+        client_name(release),
+        "cloudflared.exe" if release["target"].startswith("windows-") else "cloudflared",
         "cloudflared-manifest.json",
         "LICENSE",
         "NOTICE",
@@ -128,7 +133,12 @@ def extract(archive, directory: int, release: dict) -> None:
                 "Unexpected files, links or size in the client archive; nothing was installed.",
             )
             for entry in entries:
-                mode = 0o700 if entry.filename in ("tunnel-client", "cloudflared") else 0o600
+                mode = (
+                    0o700
+                    if entry.filename
+                    in ("tunnel-client", "cloudflared", "tunnel-client.exe", "cloudflared.exe")
+                    else 0o600
+                )
                 fd = fileio.open(
                     entry.filename,
                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | fileio.O_NOFOLLOW,
@@ -172,7 +182,7 @@ def install(store: StateStore, release: dict) -> str:
                     extract(archive, child, release)
                 finally:
                     os.close(child)
-                candidate = target.parent / stage / "tunnel-client"
+                candidate = target.parent / stage / client_name(release)
                 result = subprocess.run(
                     [str(candidate), "--version"],
                     capture_output=True,
@@ -241,7 +251,7 @@ def install(store: StateStore, release: dict) -> str:
                             existing_walk.validate()
                         finally:
                             os.close(staged)
-                    return str(target / "tunnel-client")
+                    return str(target / client_name(release))
                 fileio.rename(stage, target.name, src_dir_fd=parent, dst_dir_fd=parent)
                 created = False
                 fileio.fsync(parent)
@@ -251,4 +261,4 @@ def install(store: StateStore, release: dict) -> str:
                 with contextlib.suppress(FileNotFoundError):
                     fileio.remove_staging(stage, directory=parent)
             os.close(parent)
-    return str(target / "tunnel-client")
+    return str(target / client_name(release))

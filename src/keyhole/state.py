@@ -186,7 +186,7 @@ class StateStore:
                 if name == "runtime.json":
                     raise KeyholeError("not_configured", SETUP_HINT) from None
                 raise KeyholeError("offline", "No directory authorization is active.") from None
-            with os.fdopen(fd) as source:
+            with os.fdopen(fd, encoding="utf-8") as source:
                 st = os.fstat(source.fileno())
                 require(
                     stat.S_ISREG(st.st_mode)
