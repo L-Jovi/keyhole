@@ -8,8 +8,23 @@ from pathlib import Path
 
 from mcp.client.stdio import get_default_environment
 
+from keyhole.errors import KeyholeError
+from keyhole.windows_process import query
+
 
 def main():
+    try:
+        query(
+            "(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks | ConvertTo-Json"
+        )
+        print(json.dumps({"case": "keyhole-query", "status": "success"}), flush=True)
+    except KeyholeError as exc:
+        print(
+            json.dumps(
+                {"case": "keyhole-query", "error": str(getattr(exc.__cause__, "stderr", ""))}
+            ),
+            flush=True,
+        )
     executable = Path(os.environ["SYSTEMROOT"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
     command = (
         "$ErrorActionPreference='Stop'; [Console]::WriteLine('STARTED'); "
@@ -24,6 +39,10 @@ def main():
         "mcp-with-windir": {**minimal, "WINDIR": os.environ["SYSTEMROOT"]},
         "mcp-with-module-path": {**minimal, "PSMODULEPATH": os.environ.get("PSMODULEPATH", "")},
     }
+    command = (
+        "Get-Module -ListAvailable CimCmdlets,Microsoft.PowerShell.Utility | Select-Object Name,Path | ConvertTo-Json; "
+        + command
+    )
     for name, env in cases.items():
         start = time.monotonic()
         try:
