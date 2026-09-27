@@ -23,6 +23,7 @@ try {
     Copy-Item $wheel[0].FullName (Join-Path $work $wheel[0].Name)
     Copy-Item (Get-Command uv).Source (Join-Path $work 'uv.exe')
     Copy-Item (Join-Path $PSScriptRoot 'acceptance_bootstrap.py') (Join-Path $work 'bootstrap.py')
+    Copy-Item (Join-Path $PSScriptRoot 'check_console.py') (Join-Path $work 'console-test.py')
     Copy-Item (Join-Path $repository 'contrib/ci/chatgpt_acceptance.py') (Join-Path $work 'session.py')
     $python = (Get-Command python).Source
 

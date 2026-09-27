@@ -57,6 +57,17 @@ def main():
         status = json.loads(result.stdout)
         assert not status["configured"] and status["open_workspace_count"] == 0
         assert not missing.exists()
+        subprocess.run(
+            [
+                sys.executable,
+                str(Path.cwd() / "console-test.py"),
+                "--cli",
+                str(command),
+                "--python",
+                str(python),
+            ],
+            check=True,
+        )
         args.output.write_text(
             json.dumps(
                 {

@@ -41,14 +41,6 @@ try {
     Get-Content (Join-Path $work 'native-stdout.txt')
     Get-Content (Join-Path $work 'native-stderr.txt')
     if ($native.ExitCode -ne 0) { throw "Native filesystem tests failed: $($native.ExitCode)" }
-    $startupTest = Join-Path $work 'diagnose_startup.py'
-    Copy-Item (Join-Path $PSScriptRoot 'diagnose_startup.py') $startupTest
-    $startup = Start-Process -FilePath $python -ArgumentList "`"$startupTest`"" -Credential $credential `
-        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
-        -RedirectStandardOutput (Join-Path $work 'startup-stdout.txt') -RedirectStandardError (Join-Path $work 'startup-stderr.txt')
-    Get-Content (Join-Path $work 'startup-stdout.txt')
-    Get-Content (Join-Path $work 'startup-stderr.txt')
-    if ($startup.ExitCode -ne 0) { throw "Startup diagnostic failed: $($startup.ExitCode)" }
     $integrationTests = Join-Path $work 'test_windows_integration.py'
     Copy-Item (Join-Path $repository 'tests/test_windows_integration.py') $integrationTests
     $integration = Start-Process -FilePath $python -ArgumentList "`"$integrationTests`" -v" -Credential $credential `

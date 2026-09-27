@@ -3,6 +3,7 @@
 import contextlib
 import hashlib
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -110,6 +111,27 @@ class WindowsIntegrationTests(unittest.TestCase):
                     os.close(fd)
 
     def test_edit_restore_close_and_acl_preservation(self):
+        from keyhole import writes
+
+        compare = writes.same
+
+        def checked_images(a, b):
+            result = compare(a, b)
+            if a["kind"] == b["kind"] == "file" and a["sha256"] == b["sha256"] and not result:
+                self.fail(
+                    json.dumps(
+                        {
+                            "actual": writes.public_image(a),
+                            "expected": writes.public_image(b),
+                            "acl_equal": a.get("windows_acl") == b.get("windows_acl"),
+                        }
+                    )
+                )
+            return result
+
+        comparison = patch.object(writes, "same", side_effect=checked_images)
+        comparison.start()
+        self.addCleanup(comparison.stop)
         original = self.note.read_bytes()
         expected = hashlib.sha256(original).hexdigest()
         with self.assertRaises(KeyholeError) as denied:
@@ -211,13 +233,19 @@ class WindowsIntegrationTests(unittest.TestCase):
                 observed = owned_processes(self.state)
                 if processes[0].pid in observed:
                     break
-            self.assertEqual(set(observed), {processes[0].pid})
-            self.assertEqual(set(owned_processes(other)), {processes[1].pid})
+            # A Windows virtualenv can have both its redirector and base Python
+            # process for one server. Both belong to that state, not another one.
+            self.assertIn(processes[0].pid, observed)
+            other_processes = owned_processes(other)
+            self.assertIn(processes[1].pid, other_processes)
+            self.assertTrue(set(observed).isdisjoint(other_processes))
             terminate_owned(self.state)
             processes[0].wait(timeout=5)
             self.assertIsNone(processes[1].poll())
             self.assertEqual(owned_processes(self.state), {})
         finally:
+            terminate_owned(self.state)
+            terminate_owned(other)
             for process in processes:
                 if process.poll() is None:
                     process.kill()

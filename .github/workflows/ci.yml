@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: keyhole-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
@@ -109,7 +113,6 @@ jobs:
             ${{ runner.temp }}/keyhole-windows/installer-*.txt
             ${{ runner.temp }}/keyhole-windows/common-*.txt
             ${{ runner.temp }}/keyhole-windows/artifacts-*.txt
-            ${{ runner.temp }}/keyhole-windows/startup-*.txt
           if-no-files-found: warn
 
   windows-installer:
@@ -127,6 +130,8 @@ jobs:
           python-version: "3.12"
           architecture: x64
       - uses: astral-sh/setup-uv@v7
+      - name: Install a test-only Windows pseudoterminal controller
+        run: uv pip install --system --python python --only-binary :all: pywinpty==3.0.5
       - run: uv build
       - name: Exercise the acceptance installer without credentials or a tunnel
         shell: pwsh
