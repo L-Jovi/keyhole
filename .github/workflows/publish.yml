@@ -65,8 +65,30 @@ jobs:
           path: dist/
       - run: uv run --no-project python contrib/ci/check_artifacts.py
 
+  verify-windows:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist/
+      - name: Install the release wheel with the docs/windows.md command and run it unconfigured
+        shell: pwsh
+        run: ./contrib/windows/check_documented_install.ps1 -Wheel (Get-ChildItem dist/*.whl).FullName
+
   pypi:
-    needs: verify
+    needs: [verify, verify-windows]
     runs-on: ubuntu-24.04
     environment:
       name: pypi

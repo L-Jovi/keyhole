@@ -4,13 +4,12 @@ Keyhole lets ChatGPT work on a file **where it already lives on your computer**.
 in your terminal, ask for a change in ChatGPT, and inspect the result locally. You can restore a retained
 change and close access when finished.
 
-The screenshots below come from one real macOS session with fictional notes. They show actual ChatGPT
-responses, cropped to the relevant chat content; response text is unchanged. Commands use the portable
-example path `./demo-notes`. They are instructions, not a recording of a terminal.
+The screenshots below come from one real macOS session with the same fictional note, shared there under
+the name `KeyholeDemo`. They show actual ChatGPT responses, cropped to the relevant chat content; response
+text is unchanged. The commands are instructions, not a recording of a terminal.
 
-Complete [one-time setup](setup.md) first. This example assumes an existing `demo-notes` folder with a
-UTF-8 `notes.md` containing the following text. You can also use the wizard's sample folder, substituting
-its actual path and workspace name (`demo`) in the commands and prompts.
+Complete [one-time setup](setup.md) first and accept its sample folder. Setup creates
+`~/KeyholeDemo/notes.md` with the following text and shares the folder read-only as `demo`:
 
 ```markdown
 # Reading weekend
@@ -23,17 +22,17 @@ Ideas:
 - Pack a notebook for Sunday's walk.
 ```
 
-## 1. Open the folder locally, then read it in ChatGPT
+## 1. Read the sample in ChatGPT
 
-In your terminal:
+The sample stays read-only until you change it. If you closed it since setup, share it again:
 
 ```sh
-keyhole open ./demo-notes --name KeyholeDemo
+keyhole resume demo
 ```
 
-New grants are read-only. In ChatGPT, select your private Keyhole app and ask:
+In ChatGPT, select your private Keyhole app and ask:
 
-> Read `notes.md` in `KeyholeDemo`. Show the three ideas. Do not edit yet.
+> Read `notes.md` in `demo`. Show the three ideas. Do not edit yet.
 
 ChatGPT reads the local file through the app. The prompt does not include the file's contents:
 
@@ -44,7 +43,7 @@ ChatGPT reads the local file through the app. The prompt does not include the fi
 In your terminal:
 
 ```sh
-keyhole access KeyholeDemo rw
+keyhole access demo rw
 ```
 
 In ChatGPT:
@@ -59,7 +58,7 @@ change for recovery:
 
 ## 3. Check the file on your computer
 
-In your terminal, run `cat ./demo-notes/notes.md` (PowerShell: `Get-Content .\demo-notes\notes.md`),
+In your terminal, run `cat ~/KeyholeDemo/notes.md` (PowerShell: `Get-Content $HOME\KeyholeDemo\notes.md`),
 or open the file in your editor. The on-disk file from this session was independently checked and read:
 
 ```markdown
@@ -92,12 +91,12 @@ The local file was checked again: its entire SHA-256 matched the original, not j
 ## 5. Close access from your terminal
 
 ```sh
-keyhole close KeyholeDemo
+keyhole close demo
 ```
 
 In ChatGPT:
 
-> Make a **new** `read_file` call for `KeyholeDemo/notes.md`. Report the actual failure; do not use the
+> Make a **new** `read_file` call for `demo/notes.md`. Report the actual failure; do not use the
 > file contents already in this conversation.
 
 This was the last open folder in the session, so closing it also stopped the tunnel. The new request

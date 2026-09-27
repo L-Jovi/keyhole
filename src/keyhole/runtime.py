@@ -52,6 +52,28 @@ def environment() -> dict:
     return env
 
 
+def server_command(state_dir: Path, generation: str) -> list[str]:
+    """The MCP server command that the official runtime starts.
+
+    tunnel-client starts its runtime, and the runtime starts this command, without choosing a working
+    directory. `-I` stops the server importing from that directory, which may be an rw workspace where
+    the remote side can create a file such as `json.py`. `-I` also ignores PYTHONUTF8, so UTF-8 mode is
+    requested explicitly, as for the parser.
+    """
+    return [
+        sys.executable,
+        "-I",
+        "-X",
+        "utf8",
+        "-m",
+        SERVER_MODULE,
+        "--state-dir",
+        str(state_dir),
+        "--generation",
+        generation,
+    ]
+
+
 def parse_version(text: str) -> str | None:
     match = VERSION.match(text.splitlines()[0] if text else "")
     return match.group(1) if match else None
@@ -229,13 +251,14 @@ class NativeRuntime:
 
     # Official runtime commands ---------------------------------------------------------
 
-    def invoke(self, *args: str) -> dict:
+    def invoke(self, *args: str, cwd: Path | None = None) -> dict:
         require(bool(self.client), "native_client_missing", INSTALL_HINT)
         inspect = command_hint([self.client, "runtimes", "status", ALIAS])
         try:
             result = subprocess.run(
                 [self.client, "runtimes", *args, "--json"],
                 env=environment(),
+                cwd=cwd,
                 capture_output=True,
                 encoding="utf-8",
                 timeout=45,
@@ -337,17 +360,9 @@ class NativeRuntime:
         info = self.preflight()
         # The official client parses this field with its POSIX-style parseCommandArgv
         # on every OS; Windows CreateProcess quoting would corrupt backslashes here.
-        command = shlex.join(
-            [
-                sys.executable,
-                "-m",
-                SERVER_MODULE,
-                "--state-dir",
-                str(self.store.path),
-                "--generation",
-                generation,
-            ]
-        )
+        command = shlex.join(server_command(self.store.path, generation))
+        # The runtime keeps the directory it was started from; use the private state directory
+        # rather than wherever `keyhole` happened to run.
         self.invoke(
             "connect",
             "--alias",
@@ -362,6 +377,7 @@ class NativeRuntime:
             self.key_reference(),
             "--mcp-command",
             command,
+            cwd=self.store.path,
         )
         deadline = time.monotonic() + 20
         while True:

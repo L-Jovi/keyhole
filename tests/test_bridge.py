@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -15,9 +16,9 @@ from mcp.client.stdio import StdioServerParameters
 from keyhole.bridge import Bridge
 from keyhole.errors import KeyholeError
 from keyhole.management import Manager
+from keyhole.runtime import server_command
 from keyhole.state import StateStore
 
-SERVER_ARGS = ["-m", "keyhole.server"]
 UNICODE_LINE = "Ünïcode evidence one"
 TOOLS = {
     "list_workspaces",
@@ -102,12 +103,36 @@ class FixtureCase(unittest.TestCase):
         self.assertEqual(caught.exception.code, code)
 
     def server_params(self):
-        generation = self.store.read()["generation"]
-        args = SERVER_ARGS + ["--state-dir", str(self.state), "--generation", generation]
-        return StdioServerParameters(command=sys.executable, args=args, env={})
+        # The exact command the official runtime starts, so these handshakes cover its flags.
+        command, *args = server_command(self.state, self.store.read()["generation"])
+        return StdioServerParameters(command=command, args=args, env={})
 
 
 class BridgeTests(FixtureCase):
+    def test_server_ignores_modules_in_the_directory_it_starts_from(self):
+        # The official runtime starts the server wherever `keyhole` ran, possibly an rw workspace
+        # in which the remote side can create files. json is imported by keyhole.server itself.
+        marker = self.base / "shadowed-json-imported"
+        (self.a / "json.py").write_text(
+            f"import pathlib\npathlib.Path({str(marker)!r}).write_text('imported')\n",
+            encoding="utf-8",
+        )
+        params = self.server_params()
+        unisolated = [arg for arg in params.args if arg != "-I"]
+        # The first run proves this probe detects the problem; the second is the real command.
+        for args, imported in ((unisolated, True), (params.args, False)):
+            with self.subTest(isolated="-I" in args):
+                marker.unlink(missing_ok=True)
+                subprocess.run(
+                    [params.command, *args],
+                    cwd=self.a,
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True,
+                    timeout=60,
+                    check=False,
+                )
+                self.assertEqual(marker.exists(), imported)
+
     def test_new_changed_multiple_directories_and_idempotence(self):
         before = self.runtime.starts
         result = self.manager.open(self.a)

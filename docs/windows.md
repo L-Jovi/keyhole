@@ -1,10 +1,8 @@
 # Windows setup
 
-> Native Windows support is under review in this branch. The published 0.4.0 release refuses Windows.
-> The candidate requires a reviewed wheel; do not use `uv tool install keyhole-mcp` to obtain this
-> unreleased implementation. See [platform evidence](platforms.md) for completed checks and remaining
-> release status. Real ChatGPT acceptance passed on hosted Windows 11 ARM with x64 Python on
-> 2026-09-27. The steps below are the candidate's intended first-time path.
+> Native Windows support requires **Keyhole 0.5.0 or later**; 0.4.0 and older refuse Windows.
+> Real ChatGPT acceptance passed on a hosted Windows 11 ARM machine with x64 Python on 2026-09-27;
+> no physical consumer PC has been tested. See [platform evidence](platforms.md) for checks and limits.
 
 Keyhole lets your private ChatGPT app read the local folders you choose. New folders are read-only.
 You can explicitly allow hash-checked text edits and restore retained changes. It does not give ChatGPT
@@ -50,17 +48,20 @@ $env:Path = "$HOME\.local\bin;$env:Path"
 uv --version
 ```
 
-For a reviewed candidate wheel saved in Downloads, replace the filename below with its exact name:
+Install the published package with x64 Python, on both x64 and ARM PCs:
 
 ```powershell
-uv tool install --python cpython-3.12-windows-x86_64-none --no-build "$HOME\Downloads\REVIEWED-CANDIDATE.whl"
+uv tool install --python cpython-3.12-windows-x86_64-none --no-build keyhole-mcp
 $env:Path = "$(uv tool dir --bin);$env:Path"
 keyhole --version
 keyhole setup
 ```
 
-`uv` downloads Python if needed and isolates the package. `--no-build` requires prebuilt dependencies;
-no Visual Studio, Git, Node, WSL or compiler is needed. Do not install the unrelated PyPI package `keyhole`.
+`keyhole --version` must print 0.5.0 or later. `uv` downloads Python if needed and isolates the package.
+`--no-build` requires prebuilt dependencies; no Visual Studio, Git, Node, WSL or compiler is needed.
+Native ARM Python would need a compiler for one dependency, which is why the x64 Python is requested.
+If PyPI is unavailable, replace `keyhole-mcp` with the exact `.whl` URL from the
+[release page](https://github.com/L-Jovi/keyhole/releases). Do not install the unrelated PyPI package `keyhole`.
 `keyhole.exe` is placed in the directory printed by `uv tool dir --bin`. The PATH assignment above lasts
 for this window only. To make it available in future terminals, explicitly run `uv tool update-shell`,
 then close and reopen PowerShell and verify `keyhole --version` again.
@@ -139,7 +140,7 @@ Use `status --redact` when asking for help, rather than posting the full state o
 
 | Symptom | Next step |
 | --- | --- |
-| `unsupported_platform` | Check the installed version and Windows version. 0.4.0 has no native Windows backend. |
+| `unsupported_platform` | Run `keyhole --version`. 0.4.0 and older have no Windows backend: run `uv tool upgrade keyhole-mcp`. |
 | `keyhole` is not recognized | Run `uv tool dir --bin`, add that directory to this window's PATH, then use `uv tool update-shell` for future terminals. |
 | A saved client is missing | Rerun setup, or use `keyhole --tunnel-client 'C:\Tools\tunnel-client.exe' setup` with your actual executable. |
 | Download interrupted or checksum mismatch | Rerun setup; check network/proxy and disk space. Do not disable the checksum check. |

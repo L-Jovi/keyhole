@@ -4,26 +4,26 @@ Let ChatGPT read, and carefully edit, only the local folders you choose. No shel
 
 **Example: turn a note on your computer into a TODO list, without uploading the file by hand.**
 
-**1. In your terminal, open one folder.** After [one-time setup](docs/setup.md), share an existing
-folder containing `notes.md`. It starts read-only; the second command explicitly allows editing:
+**1. In your terminal, allow the sample folder to be edited.** [One-time setup](#start-here) creates
+`~/KeyholeDemo` with a fictional `notes.md` and shares it read-only as `demo`. Editing needs an explicit
+local command:
 
 ```sh
-keyhole open ./demo-notes --name KeyholeDemo
-keyhole access KeyholeDemo rw
+keyhole access demo rw
 ```
 
 **2. In ChatGPT, select your Keyhole app and ask:**
 
-> Read `notes.md` in `KeyholeDemo`, turn its three ideas into TODO checkboxes, and save the file.
+> Read `notes.md` in `demo`, turn its three ideas into TODO checkboxes, and save the file.
 
-This is the real response from a session using fictional notes:
+This is the real response from a session with the same fictional note, shared there as `KeyholeDemo`:
 
 ![ChatGPT used Keyhole to edit the local notes.md, read it back, and return a recoverable change id](docs/images/demo-chatgpt-edit.jpg)
 
 **3. Back in your terminal, inspect the same file.**
 
 ```sh
-cat ./demo-notes/notes.md
+cat ~/KeyholeDemo/notes.md
 ```
 
 Its three ideas now contain checkboxes. These lines were checked on disk after the edit:
@@ -34,15 +34,14 @@ Its three ideas now contain checkboxes. These lines were checked on disk after t
 - [ ] Pack a notebook for Sunday's walk.
 ```
 
-You can ask ChatGPT to restore the returned change id. When finished, run
-`keyhole close KeyholeDemo` to stop sharing that folder.
-[See the complete read → edit → restore → close example, with real screenshots](docs/demo.md).
+You can ask ChatGPT to restore the returned change id. When finished, run `keyhole close demo` to stop
+sharing the folder. [See the complete read → edit → restore → close example, with real screenshots](docs/demo.md).
 
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/keyhole-mcp.svg)](https://pypi.org/project/keyhole-mcp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/L-Jovi/keyhole/blob/main/LICENSE)
 
-Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac or Linux computer, plus a command-line
+Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac, Linux or Windows computer, plus a command-line
 tool, `keyhole`. You open a folder with `keyhole open`; ChatGPT on the web can then read it through OpenAI's
 official [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). Give a folder
 `rw`, and ChatGPT can also create and edit text files in it. Every edit is checked against the file's current
@@ -77,9 +76,12 @@ The setup wizard can download the verified official client, resume incomplete co
 read-only example. If PyPI is unavailable, use the exact wheel URL from
 [GitHub Releases](https://github.com/L-Jovi/keyhole/releases).
 
+**On Windows, follow the [PowerShell guide](docs/windows.md) instead.** Its install command requests the
+x64 Python that Keyhole's dependencies need, on both x64 and ARM PCs.
+
 That is the complete first-time path: check your account access, install the tools, connect your own tunnel,
 create a private ChatGPT app, and read a real demo file. Follow it once, from top to bottom. No Python, Git,
-Node, Docker or tmux installation is required. You need macOS or Ubuntu Linux, ChatGPT Developer mode and permission to create
+Node, Docker or tmux installation is required. You need macOS, Ubuntu Linux or Windows 11, ChatGPT Developer mode and permission to create
 an OpenAI Platform tunnel and restricted runtime key. Budget about 15 minutes after account access is ready.
 
 The GitHub repository supplies the software. **You create your own tunnel and private ChatGPT app**;
@@ -99,7 +101,7 @@ stays under your local control.
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
 | Linux | Supported on Ubuntu x86_64. Real ChatGPT read/edit/restore/close verified on Ubuntu 24.04; Ubuntu 22.04/24.04 have Python 3.11–3.14 CI and artifact coverage. Other distributions and Linux ARM are untested. [Evidence and limits](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
-| Windows | The native NTFS candidate passed real ChatGPT read/edit/restore/close on a hosted Windows 11 ARM machine using x64 Python. It is under review and is **not included in the published 0.4.0 release**. See the [candidate guide](docs/windows.md) and [evidence and limits](docs/platforms.md#windows-native-candidate). |
+| Windows | Windows 11 with x64 Python and local NTFS folders, from 0.5.0. Real ChatGPT read/edit/restore/close verified on a hosted Windows 11 ARM machine; Windows Server 2025 x64 has automated coverage. No physical consumer PC has been tested. [Setup guide](docs/windows.md), [evidence and limits](docs/platforms.md#windows-native-support). |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
 | Clean install | Release wheel tested with Git/Python developer-tool commands unavailable in a simulated environment; not a freshly erased Mac. |
@@ -194,7 +196,7 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
 - ChatGPT can never modify Keyhole's own code or environment, the state directory, or shell startup files
   such as `.zshrc` and `.envrc`, whatever spelling of the path it uses.
 - Symbolic links, hard-linked files and special files are refused. Paths are opened component by
-  component with `O_NOFOLLOW` on macOS/Linux or parent directory handles in the Windows candidate,
+  component with `O_NOFOLLOW` on macOS/Linux or parent directory handles on Windows,
   and re-checked before and after each operation.
 - Hiding by file name is not secret detection: a token inside a shared source file is readable while the
   folder is open, and anything already sent to ChatGPT cannot be recalled by closing the folder.

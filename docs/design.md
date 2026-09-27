@@ -3,8 +3,8 @@
 One page on how Keyhole works and where its trust boundaries are. Command and tool details are in
 [reference.md](reference.md).
 
-Windows details below describe the native candidate. See [platform evidence](platforms.md) for its
-acceptance status; the published 0.4.0 release supports macOS and Ubuntu.
+Windows details below describe the native backend shipped in 0.5.0. See [platform evidence](platforms.md)
+for its acceptance status and limits.
 
 ## Components
 

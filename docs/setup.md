@@ -8,14 +8,15 @@
 Follow this page from top to bottom. The goal is one real ChatGPT read of a fictional note in a folder
 you deliberately shared. No personal documents are needed to try it.
 
-Windows candidate testers: use the separate [PowerShell setup guide](windows.md). The published 0.4.0
-release does not support Windows; do not use the shell commands below as a Windows installation path.
+**On Windows, use the separate [PowerShell setup guide](windows.md)** (Keyhole 0.5.0 or later). The shell
+commands below are for macOS and Linux.
 
 ## 1. Check access before installing
 
 - **macOS or Ubuntu Linux.** Apple silicon on macOS 15.6/15.7.7 and Ubuntu 24.04 x86_64 have real
   ChatGPT acceptance. Ubuntu 22.04 has automated coverage; Intel Macs, older macOS, other Linux
-  distributions and Linux ARM are untested. Windows is unsupported. See [platform evidence](platforms.md).
+  distributions and Linux ARM are untested. Windows 11 has its own [guide](windows.md). See
+  [platform evidence](platforms.md).
 - **ChatGPT web with Developer mode.** Tested with Pro in Chat mode; other eligible plans and fresh-account
   onboarding are untested here. A workspace administrator may need to grant access.
 - **OpenAI Platform tunnel permissions.** Creating a tunnel needs **Tunnels: Read + Manage**; the runtime
@@ -110,7 +111,6 @@ There is no extra terminal server command to keep running.
 6. Save. If discovery fails, inspect `keyhole status --human`, fix its reported issue and retry.
 
 The app is private to your setup. Secure MCP Tunnel does not provide public plugin-store distribution.
-For a renamed existing Local Evidence Bridge app, keep its tunnel and edit its name/description.
 
 ## 5. Read your first file
 
@@ -123,11 +123,11 @@ name as ordinary text does not connect it. Then send:
 A generic “I can access files” statement is not evidence. If no tool is called, check the selected app and
 start a new conversation. Use [diagnostics](../README.md#troubleshooting) for an actual tool failure.
 
-![Selecting the Keyhole app](images/select-keyhole.png)
+![Selecting the Keyhole app](images/select-keyhole.jpg)
 
-The following earlier acceptance example read a synthetic `hello.txt`; the new wizard uses `notes.md`:
+A successful read of the sample looks like this (recorded with the folder shared as `KeyholeDemo`):
 
-![Real ChatGPT read of a synthetic file](images/read-file.png)
+![Real ChatGPT read: the three ideas returned from the sample notes.md](images/demo-chatgpt-read.jpg)
 
 Setup is complete after the successful read. To stop now, run `keyhole close demo`.
 

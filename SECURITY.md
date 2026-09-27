@@ -20,7 +20,7 @@ Keyhole's job is to make sure that ChatGPT, or anything else talking to the tunn
 - never run programs, expand its own access, or reach anything through a public port.
 
 Every path is opened component by component (`O_NOFOLLOW` on POSIX, handle-relative no-reparse opens
-in the native Windows candidate) and checked against the grant's volume and file identity;
+on Windows) and checked against the grant's volume and file identity;
 links, hard-linked files and special files are refused; roots are stored canonically so alias
 spellings do not bypass checks; grant changes and writes are serialized under one lock; every write is
 journaled before it is applied and verified after.
@@ -34,9 +34,9 @@ journaled before it is applied and verified after.
 | Prompt injection from files | A file in an opened folder can contain text that tries to steer ChatGPT. Keyhole marks such content as untrusted data, but the model still reads it. Keep `rw` off for folders you do not fully control, and keep write confirmation on. |
 | A compromised OpenAI account or workspace | Anyone who can use your ChatGPT app can use your folders. The tunnel should be associated only with your own workspace; the runtime key should have Tunnels *Read + Use* only, so a leaked key cannot create or modify tunnels. |
 | Another local program editing the same file | Keyhole checks the file before and after each step and refuses on change, but it does not lock files against other editors. Avoid editing the same file in two places at once. |
-| Loss of metadata | BOM and line endings are preserved. POSIX preserves mode bits, not ACLs or extended attributes. Windows candidate in-place edits preserve DACL access and read-only attributes; new files, copy and move destinations use private ACLs. Windows refuses mutation of encrypted, compressed, sparse files or files with named alternate streams. Other extended metadata and the old file identity are not preserved. |
+| Loss of metadata | BOM and line endings are preserved. POSIX preserves mode bits, not ACLs or extended attributes. Windows in-place edits preserve DACL access and read-only attributes; new files, copy and move destinations use private ACLs. Windows refuses mutation of encrypted, compressed, sparse files or files with named alternate streams. Other extended metadata and the old file identity are not preserved. |
 | Bugs in third-party parsers | Documents are parsed in a separate process with CPU, wall-clock, input-size and zip-expansion limits. A 2 GiB address-space limit is attempted where the OS supports it; macOS may reject it. The process retains the current user's file and network permissions. Process separation limits failures, but is not an OS sandbox or protection against a compromised parser. |
-| Other users or administrators on the same machine | POSIX state uses 0600/0700. The Windows candidate uses protected ACLs for its owner, SYSTEM and Administrators. The design assumes one user per state directory and does not defend against a local administrator. |
+| Other users or administrators on the same machine | POSIX state uses 0600/0700. Windows state uses protected ACLs for its owner, SYSTEM and Administrators. The design assumes one user per state directory and does not defend against a local administrator. |
 
 ## Data flow and storage
 

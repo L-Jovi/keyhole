@@ -2,6 +2,7 @@
 
 import json
 import os
+import shlex
 import shutil
 import tempfile
 import unittest
@@ -67,8 +68,16 @@ class RuntimeTests(unittest.TestCase):
         options = dict(zip(connect[2:-1:2], connect[3:-1:2], strict=True))
         self.assertEqual(options["--tunnel-id"], TUNNEL)
         self.assertEqual(options["--runtime-api-key"], "file:" + str(self.state / "runtime.key"))
-        self.assertIn("-m keyhole.server", options["--mcp-command"])
+        server = shlex.split(options["--mcp-command"])
+        self.assertEqual(server[1:6], ["-I", "-X", "utf8", "-m", "keyhole.server"])
         self.assertIn("--generation generation-1", options["--mcp-command"])
+        # The runtime inherits this directory, so it must not be wherever the CLI ran.
+        cwds = [
+            json.loads(line)
+            for line in (self.tmp / "fake-tunnel-cwd.jsonl").read_text().splitlines()
+        ]
+        connect_cwd = next(e["cwd"] for e in cwds if e["command"] == ["runtimes", "connect"])
+        self.assertEqual(Path(connect_cwd).resolve(), self.state.resolve())
         self.assertEqual(self.runtime.status()["runtime_state"], "running")
         self.assertFalse(self.runtime.stop()["process_running"])
         self.assertIn(["runtimes", "stop", ALIAS, "--json"], self.invocations())

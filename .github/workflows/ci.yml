@@ -147,3 +147,19 @@ jobs:
           name: windows-standard-user-wheel-${{ matrix.os }}
           path: ${{ runner.temp }}/keyhole-windows-acceptance/report.json
           if-no-files-found: warn
+
+  windows-documented-install:
+    name: Windows documented install / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv build --wheel
+      - name: Install the wheel with the docs/windows.md command and run it unconfigured
+        shell: pwsh
+        run: ./contrib/windows/check_documented_install.ps1 -Wheel (Get-ChildItem dist/*.whl).FullName

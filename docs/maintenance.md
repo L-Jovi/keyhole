@@ -48,10 +48,6 @@ Keep **one active Keyhole installation and state directory per OS user**: the of
 `keyhole`, so custom state directories are alternatives, not independent simultaneous instances. On another
 computer, create its own tunnel and key; two machines must not serve the same tunnel.
 
-For an existing Local Evidence Bridge installation, retain its established state directory and pass it
-explicitly. Changing the CLI name does not migrate local grants, history or credentials. Never copy a key
-into a chat or repository to perform the migration.
-
 ## Recovery
 
 Use `keyhole history --limit 100` to inspect recent retained records. For a normal interrupted operation,
