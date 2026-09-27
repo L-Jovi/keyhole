@@ -2,8 +2,16 @@
 
 Let ChatGPT read, and carefully edit, only the local folders you choose. No shell, no public port.
 
+[![Real ChatGPT results: read a note, edit its checklist, restore it and close access](https://raw.githubusercontent.com/L-Jovi/keyhole/main/docs/images/keyhole-demo.gif)](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)
+
+**[Watch the 59-second walkthrough](https://github.com/L-Jovi/keyhole/blob/main/docs/media/keyhole-demo.mp4)**
+· [Static preview](https://github.com/L-Jovi/keyhole/blob/main/docs/images/keyhole-demo.png) · [What was verified](https://github.com/L-Jovi/keyhole/blob/main/docs/demo.md)
+
+Real ChatGPT responses and checked local files, edited into a walkthrough with fictional notes. Setup and
+waiting are omitted; response text is unchanged. Open read-only → allow an edit → restore → close access.
+
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/L-Jovi/keyhole/blob/main/LICENSE)
 
 Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac, plus a command-line
 tool, `keyhole`. You open a folder with `keyhole open`; ChatGPT on the web can then read it through OpenAI's
@@ -19,15 +27,21 @@ Unofficial project; not affiliated with OpenAI.
   say `--access rw`. Nothing ChatGPT does can widen its own access: grants are managed by the local CLI only.
 - **Careful edits you can undo.** Writes require the file's current SHA-256; updates based on a stale hash
   are refused. The previous content is kept in a private local history, and `restore_change` rolls it back.
-- **Evidence-grade reading.** Text, PDF, Word, PowerPoint, Excel and images come back with hashes and ranges,
+- **Several folders, useful file formats.** Open folders independently with their own ro/rw permissions.
+  Text, PDF, Word, PowerPoint, Excel and images come back with hashes and ranges,
   so answers can cite what was read. Document parsers have CPU, time and input-size limits, but run with
   your OS permissions; they are not an OS sandbox.
-- **No shell, no public endpoint, no third-party relay.** The only network path is the outbound connection
-  from OpenAI's tunnel client on your Mac to OpenAI. Close the last folder and the tunnel stops.
+
+The connection uses OpenAI's official client. It exposes no public endpoint and no remote shell.
+Close the last folder and the tunnel stops. [Compare related projects](https://github.com/L-Jovi/keyhole/blob/main/docs/alternatives.md).
 
 ## Start here
 
-**[Set up Keyhole and read your first file →](docs/setup.md)**
+**[Install the published v0.3.2 release →](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md)**
+
+The [upcoming v0.4.0 setup wizard](https://github.com/L-Jovi/keyhole/blob/main/docs/setup.md) adds automatic verified client installation, resumable setup
+and readable diagnostics. It is currently in source; the v0.3.2 wheel does not include these changes.
+PyPI publication is pending, so `uv tool install keyhole-mcp` is not advertised as a working install yet.
 
 That is the complete first-time path: check your account access, install the tools, connect your own tunnel,
 create a private ChatGPT app, and read a real demo file. Follow it once, from top to bottom. No Python, Git,
@@ -44,18 +58,14 @@ Open several folders independently, keep some read-only, and allow recoverable t
 Read documents as well as source code, then close a folder when the task is finished. Folder access always
 stays under your local control.
 
-![A real ChatGPT conversation reading hello.txt through Keyhole](docs/images/read-file.png)
-
-Recorded with a synthetic demo folder on macOS, 2026-09-26. See the
-[first-use guide](docs/setup.md) to reproduce it with your own private app.
-
 ### Compatibility
 
 | Surface | Verified / limitation |
 | --- | --- |
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
-| Other OS | Linux has experimental unit tests only. Windows is unsupported; commands report this without a traceback. |
+| Linux | Experimental. Ubuntu 22.04/24.04 Python 3.11–3.14 CI and artifact checks passed; real Linux-hosted ChatGPT acceptance is still pending. [Evidence and criteria](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
+| Windows | Unsupported. CI checks the refusal message and separate NTFS feasibility probes; neither establishes Windows support. |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
 | Clean install | Release wheel tested with Git/Python developer-tool commands unavailable in a simulated environment; not a freshly erased Mac. |
@@ -84,7 +94,7 @@ keyhole open ~/code/app --exclude Private --exclude 'Secret/*'
 keyhole access app ro                             # back to read-only
 keyhole status                                    # configuration, checks, runtime state
 keyhole close --all                               # stop sharing; the tunnel stops too
-keyhole resume --all                              # after a reboot, share the saved folders again
+keyhole resume notes                             # after a reboot, resume only an intended folder
 keyhole history --limit 20                        # recent recoverable changes
 ```
 
@@ -154,23 +164,27 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
 - Hiding by file name is not secret detection: a token inside a shared source file is readable while the
   folder is open, and anything already sent to ChatGPT cannot be recalled by closing the folder.
 
-Threat model, what is out of scope, and how to report a vulnerability: [SECURITY.md](SECURITY.md).
+Threat model, what is out of scope, and how to report a vulnerability: [SECURITY.md](https://github.com/L-Jovi/keyhole/blob/main/SECURITY.md).
 
 ## Commands and tools
 
 | Command | What it does |
 | --- | --- |
-| `keyhole setup` | Store the tunnel id and runtime key; `--accept-client-version` after a `tunnel-client` upgrade; `--rotate-key` |
+| `keyhole setup` | Resumable wizard; optional verified client installation and read-only sample; `--no-browser` prints links only |
+| `keyhole setup --update-client` | Update only a Keyhole-managed client to the version verified by this release |
+| `keyhole setup --accept-client-version` / `--rotate-key` | Accept a reviewed external-client update / replace the stored runtime key |
 | `keyhole open PATH [--name N] [--access ro\|rw] [--exclude P]... [--recovery on\|off]` | Share a folder and start the runtime; new folders are `ro` |
 | `keyhole access NAME ro\|rw` | Change a saved folder's mode |
 | `keyhole close [NAME...\|--all]` | Stop sharing; saved paths and history stay |
 | `keyhole resume [NAME...\|--all]` | Re-verify saved folders and share them again |
 | `keyhole forget [NAME...\|--all]` | Stop sharing and remove the saved configuration |
 | `keyhole status` | Configuration, environment checks, runtime state, open folders |
+| `keyhole status --human` / `--redact` | Readable next steps / issue-safe JSON without ids, private paths or names |
 | `keyhole history [--limit N]` | Recent recoverable changes, including interrupted ones |
 | `keyhole purge-history --before DATE --confirm` | Permanently delete completed history before a date |
 
-Every command prints JSON; `"ok": false` comes with an `error.code` you can act on.
+Commands print JSON by default; `"ok": false` comes with an `error.code` you can act on.
+`status --human` prints readable text. New setup/status options require the upcoming release or a source build.
 
 | Tool ChatGPT calls | Effect |
 | --- | --- |
@@ -182,18 +196,20 @@ Every command prints JSON; `"ok": false` comes with an `error.code` you can act 
 | `list_changes`, `restore_change` | Recent changes and undo |
 
 The five read tools are marked read-only and the seven write tools destructive, which is what ChatGPT's
-write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](docs/reference.md). Upgrades, custom paths and
-uninstall: [maintenance](docs/maintenance.md).
+write confirmation keys on. Full parameters, error codes and limits: [docs/reference.md](https://github.com/L-Jovi/keyhole/blob/main/docs/reference.md). Upgrades, custom paths and
+uninstall: [maintenance](https://github.com/L-Jovi/keyhole/blob/main/docs/maintenance.md).
 
 ## Troubleshooting
 
 | Symptom | What to do |
 | --- | --- |
 | `not_configured` | Run `keyhole setup`. The state directory is `~/.config/keyhole` unless you pass `--state-dir`. |
+| Missing or interrupted client download | Rerun `keyhole setup`; check proxy, certificate trust and disk space. Never bypass a checksum failure. |
+| Setup was interrupted or already ran | Rerun setup to reuse complete values and finish missing steps. Do not delete the state directory. |
 | `client_version_changed` | `tunnel-client` was upgraded. Check the release notes, then `keyhole setup --accept-client-version`. |
 | `symlink_in_path` | The folder, the state directory, or one of their parents is behind a symbolic link. Use the physical path (`pwd -P`). |
 | `permission_denied` on Desktop, Documents or Downloads | macOS is protecting the folder. Allow your terminal app under System Settings → Privacy & Security → Files and Folders, then retry. |
-| `runtime_not_ready` or the app says the server is unreachable | `tunnel-client runtimes status keyhole`, then `keyhole resume NAME` for the folder you intend to share. `ready: true` locally only means the tunnel is up; test with a real call in ChatGPT. |
+| `runtime_not_ready` or the app says the server is unreachable | `keyhole status --human`, then follow its message; native diagnostic commands include the selected client's path. Resume only the intended folder with `keyhole resume NAME`. Readiness still needs a real ChatGPT call. |
 | Tools missing in ChatGPT after an upgrade | Open the app's details in ChatGPT and press **Refresh**, then start a new chat. New folders never need a refresh. |
 
 ## Glossary
@@ -222,9 +238,10 @@ explains the boundaries. Link that directory into `~/.codex/skills/` (the layout
 - Tracked: the server and CLI (`src/keyhole/`), tests, docs, the Codex skill. Runtime state, keys, grants and
   recovery history live in `~/.config/keyhole/` and are never part of the repository.
 - Maintained by [Jovi](https://github.com/L-Jovi); best-effort, single maintainer. Bugs and ideas:
-  [issues](https://github.com/L-Jovi/keyhole/issues). How to work on it: [CONTRIBUTING.md](CONTRIBUTING.md).
-  Changes: [CHANGELOG.md](CHANGELOG.md).
+  [issues](https://github.com/L-Jovi/keyhole/issues). How to work on it: [CONTRIBUTING.md](https://github.com/L-Jovi/keyhole/blob/main/CONTRIBUTING.md).
+  Changes: [CHANGELOG.md](https://github.com/L-Jovi/keyhole/blob/main/CHANGELOG.md).
+- Platform evidence: [validation](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). Release maintainers: [Trusted Publishing](https://github.com/L-Jovi/keyhole/blob/main/docs/publishing.md).
 
 ## License
 
-[MIT](LICENSE).
+[MIT](https://github.com/L-Jovi/keyhole/blob/main/LICENSE).

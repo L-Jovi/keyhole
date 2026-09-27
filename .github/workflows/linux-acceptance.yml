@@ -1,0 +1,43 @@
+name: Manual Linux ChatGPT acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keyhole-linux-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: linux-acceptance
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --group dev
+      - run: uv run pytest -q
+      - run: uv build
+      - name: Install the actual wheel into an isolated tool environment
+        run: |
+          uv tool install --python 3.12 dist/keyhole_mcp-*.whl
+          echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
+      - name: Timed synthetic read, edit, restore and close session
+        env:
+          KEYHOLE_ACCEPTANCE_TUNNEL: ${{ secrets.KEYHOLE_ACCEPTANCE_TUNNEL }}
+          KEYHOLE_ACCEPTANCE_KEY: ${{ secrets.KEYHOLE_ACCEPTANCE_KEY }}
+        run: uv run python contrib/ci/linux_acceptance.py --output "$RUNNER_TEMP/linux-acceptance.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-chatgpt-acceptance
+          path: ${{ runner.temp }}/linux-acceptance.json
+          if-no-files-found: warn

@@ -3,6 +3,9 @@
 First-time users: follow [Your first file in ChatGPT](setup.md) instead. These operations are optional after
 setup. Commands below assume the default state directory and the release named in the current release notes.
 
+New setup/status options below describe the upcoming release on `main`; v0.3.2 users should use its
+[versioned maintenance guide](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/maintenance.md).
+
 ## Upgrades
 
 - **Keyhole:** close the folders you are sharing, install the new release's wheel, then resume only the
@@ -14,21 +17,31 @@ setup. Commands below assume the default state directory and the release named i
   actual new release URL. This removes the old executable entry without deleting grants, keys or history.
 - **Tool definitions:** refresh the private app in ChatGPT only when the changelog says definitions changed.
   Then start a new chat. Opening folders, changing permissions and renaming the app do not require Refresh.
-- **tunnel-client:** `brew upgrade openai/tools/tunnel-client` may install a version Keyhole has not accepted.
+- **Keyhole-managed tunnel-client:** `keyhole setup --update-client` installs the version pinned by the
+  current Keyhole release, after confirmation. It does not automatically chase OpenAI's latest version.
+  Older versions are retained; there is no automatic cleanup or background updater.
+- **External tunnel-client:** `brew upgrade openai/tools/tunnel-client` may install a version Keyhole has not accepted.
   Review the client's release notes, then run `keyhole setup --accept-client-version` and resume the intended
   folders. New starts are refused while versions differ. Closing folders and saving read-only permissions
   still revoke old access even if the new runtime cannot start; inspect `keyhole status` afterwards.
 
 ## Custom state and client paths
 
-Use the global options before the command, and repeat them on every call:
+Use global options before the command. Repeat a custom state directory on every call; setup now saves
+the chosen client path, so the client flag need not be repeated:
 
 ```sh
 keyhole --state-dir /absolute/private/state --tunnel-client /absolute/bin/tunnel-client setup
-keyhole --state-dir /absolute/private/state --tunnel-client /absolute/bin/tunnel-client status
+keyhole --state-dir /absolute/private/state status --human
 ```
 
-Paths must not contain symbolic links. The state directory and its parent folders cannot be shared.
+Resolution is explicit `--tunnel-client`, then saved path, then PATH for older configurations without a
+saved path. A saved path that disappears produces an error instead of silently choosing another binary.
+Run setup with an explicit new path to change it. External clients remain their original installer's
+responsibility. Managed files are under `clients/VERSION/PLATFORM-ARCH/` inside the private state directory
+and need no separate PATH entry.
+
+State paths must not contain symbolic links. The state directory and its parent folders cannot be shared.
 Keep **one active Keyhole installation and state directory per OS user**: the official runtime alias is
 `keyhole`, so custom state directories are alternatives, not independent simultaneous instances. On another
 Mac, create its own tunnel and key; two machines must not serve the same tunnel.
@@ -60,8 +73,14 @@ prompt hides the new key.
 1. Run `keyhole close --all` and verify `shutdown_confirmed: true`.
 2. Remove your private app in ChatGPT, and revoke its runtime key and tunnel on OpenAI Platform.
 3. Run `uv tool uninstall keyhole` for 0.3.1, or `uv tool uninstall keyhole-mcp` for the renamed distribution.
-4. Optional: remove your state directory only if you also want to permanently discard saved grants and
+4. A package uninstall preserves managed clients, keys, grants and history. After confirming shutdown,
+   you may remove only the state directory's `clients/` subtree to discard its downloaded clients.
+   Uninstall external clients with their original installer if no other tool uses them.
+5. Optional: remove your state directory only if you also want to permanently discard saved grants and
    recovery history. Removing the package alone preserves that data and never deletes shared source files.
+
+The sample directory is yours too: close its grant before removing it, and check it contains no work you
+want to keep. No uninstall command deletes user documents or account resources automatically.
 
 ## Directory evaluation (maintainers)
 

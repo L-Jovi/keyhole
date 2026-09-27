@@ -6,14 +6,14 @@ body:
     id: what
     attributes:
       label: What happened
-      description: What you did, what you expected, what happened instead. Paste the JSON that `keyhole` printed; it never contains your key.
+      description: What you did, what you expected, and what happened instead. Include the error code; remove private paths and file contents before sharing other output.
     validations:
       required: true
   - type: textarea
     id: env
     attributes:
       label: Environment
-      description: Output of `keyhole status` with tunnel ids and private paths removed, macOS version, `tunnel-client --version`, and how you installed keyhole. Never include API keys or private file contents.
+      description: Output of `keyhole status --redact`, OS/version and installation method. With v0.3.2 or older, manually remove tunnel ids, workspace names and private paths from status output. Never include keys or file contents.
     validations:
       required: true
   - type: checkboxes

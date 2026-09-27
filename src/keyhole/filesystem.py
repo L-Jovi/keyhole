@@ -5,6 +5,7 @@ import fcntl
 import hashlib
 import os
 import stat
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -66,10 +67,14 @@ def local_path_error(path: Path, exc: OSError) -> KeyholeError:
     if exc.errno == errno.ENOENT:
         return KeyholeError("path_missing", f"{path} does not exist.")
     if exc.errno in (errno.EACCES, errno.EPERM):
+        hint = (
+            "On macOS, allow your terminal in System Settings > Privacy & Security > Files and Folders."
+            if sys.platform == "darwin"
+            else "Check ownership, directory search permissions and any ACL or sandbox policy."
+        )
         return KeyholeError(
             "permission_denied",
-            f"{path} is not accessible ({exc.strerror}). On macOS, allow your terminal in "
-            "System Settings > Privacy & Security > Files and Folders.",
+            f"{path} is not accessible ({exc.strerror}). {hint}",
         )
     return KeyholeError("local_failure", f"{path}: {exc.strerror}")
 
