@@ -4,7 +4,10 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "tests"))
+test_root = Path(__file__).parent / "tests"
+if not test_root.is_dir():
+    test_root = Path.cwd() / "tests"
+sys.path.insert(0, str(test_root))
 
 # These methods assert POSIX APIs or metadata, not portable behavior. Their
 # native counterparts live in test_windows_files and test_windows_integration.
@@ -43,6 +46,8 @@ def main():
             "test_writes.WriteTests",
             "test_hardening.BoundaryTests",
             "test_hardening.RecoveryBoundaryTests",
+            "test_client_install.ClientInstallTests",
+            "test_cli.CliTests",
         ]
     )
     result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(selected(suite)))

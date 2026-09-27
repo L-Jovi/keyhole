@@ -1,4 +1,4 @@
-"""Native Windows file primitives; not yet enabled by the public CLI.
+"""Native Windows file primitives for the NTFS boundary.
 
 Every relative open uses a held directory handle and one validated component.
 The POSIX rename flag permits replacement without closing the old file handle.

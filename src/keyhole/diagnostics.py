@@ -23,6 +23,7 @@ ERROR_CODES = frozenset(
         "invalid_path",
         "state_invalid",
         "boot_identity_unavailable",
+        "windows_process_query_failed",
         "unsupported_platform",
         "local_failure",
         "manager_busy",

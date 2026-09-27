@@ -1,5 +1,6 @@
 """Native Windows integration; synthetic directories and fake transport only."""
 
+import contextlib
 import hashlib
 import io
 import os
@@ -10,6 +11,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 if sys.platform == "win32":
     from keyhole import file_ops as fileio
@@ -78,6 +81,22 @@ class WindowsIntegrationTests(unittest.TestCase):
         data, metadata = fs.read("resume 笔记.md")
         self.assertEqual(data, self.note.read_bytes())
         self.assertEqual(metadata["sha256"], hashlib.sha256(data).hexdigest())
+
+    def test_boot_identity_in_a_minimal_mcp_environment(self):
+        from mcp.client.stdio import get_default_environment
+
+        env = get_default_environment()
+        env.pop("PSMODULEPATH", None)
+        result = subprocess.run(
+            [sys.executable, "-c", "from keyhole.state import boot_id; print(boot_id())"],
+            env=env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            encoding="utf-8",
+            timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), boot_id())
 
     def test_config_key_and_history_are_private(self):
         save_runtime(self.state, "tunnel_" + "a" * 32, "sk-fake-test-never-a-real-key", "0.0.14")
@@ -238,6 +257,78 @@ class WindowsIntegrationTests(unittest.TestCase):
         subprocess.run(
             ["icacls", str(self.shared / "readonly.md"), "/reset"], check=True, capture_output=True
         )
+
+    def test_repeated_and_partial_setup_preserve_private_key_grants_and_history(self):
+        from keyhole import setup
+        from keyhole.diagnostics import redact_status
+
+        args = SimpleNamespace(
+            state_dir=self.state,
+            tunnel_client=None,
+            no_browser=True,
+            rotate_key=False,
+            accept_client_version=False,
+            update_client=False,
+        )
+        key = "sk-synthetic-windows-key-never-a-real-credential"
+        tunnel = "tunnel_" + "a" * 32
+        grants = (self.state / "grants.json").read_bytes()
+        history = self.state / "changes.sqlite3"
+        history.write_bytes(b"synthetic retained history")
+        with (
+            patch(
+                "keyhole.setup.select_client", return_value=(sys.executable, "0.0.14", "external")
+            ),
+            patch.object(NativeRuntime, "checks", return_value={"ok": True}),
+            patch.object(NativeRuntime, "status", return_value={"ready": False}),
+            patch("webbrowser.open") as browser,
+            patch("getpass.getpass", return_value=key) as secret,
+            contextlib.redirect_stderr(io.StringIO()) as output,
+        ):
+            with patch("builtins.input", side_effect=[tunnel, "n"]):
+                result = setup.run(args)
+            self.assertTrue(result["configured"])
+            self.assertFalse(result["chatgpt_read_verified"])
+            secret.assert_called_once()
+            secret.reset_mock()
+            before = (self.state / "runtime.key").read_bytes()
+            for partial in (False, True):
+                if partial:
+                    (self.state / "runtime.json").unlink()
+                with patch("builtins.input", side_effect=[tunnel, "n"] if partial else ["n"]):
+                    setup.run(args)
+                secret.assert_not_called()
+                self.assertEqual((self.state / "runtime.key").read_bytes(), before)
+            browser.assert_not_called()
+            self.assertNotIn(key, output.getvalue())
+            redacted = str(redact_status(self.manager.status()))
+            self.assertNotIn(str(self.state), redacted)
+            self.assertNotIn(tunnel, redacted)
+            self.assertNotIn(key, redacted)
+        self.assertEqual((self.state / "grants.json").read_bytes(), grants)
+        self.assertEqual(history.read_bytes(), b"synthetic retained history")
+
+    def test_new_demo_stays_readonly_and_never_overwrites_or_resumes_saved_folders(self):
+        from keyhole import setup
+
+        store = StateStore(self.root / "demo state")
+        os.close(open_private_directory(store.path))
+        runtime = OfflineRuntime()
+        manager = Manager(store, runtime)
+        manager.open(self.shared, name="Saved", access="rw")
+        manager.select(["Saved"], False, enable=False)
+        demo = self.root / "Demo 笔记"
+        setup.create_demo(store, runtime, demo)
+        grants = {g["name"]: g for g in store.read()["workspaces"]}
+        self.assertFalse(grants["Saved"]["enabled"])
+        self.assertEqual(grants["Saved"]["access"], "rw")
+        self.assertEqual(grants["demo"]["access"], "ro")
+        self.assertTrue(grants["demo"]["enabled"])
+        self.assertEqual((demo / "notes.md").read_bytes(), setup.DEMO_TEXT.encode())
+        with self.assertRaises(KeyholeError) as collision:
+            setup.create_demo(store, runtime, demo)
+        self.assertEqual(collision.exception.code, "demo_exists")
+        self.assertEqual((demo / "notes.md").read_bytes(), setup.DEMO_TEXT.encode())
 
 
 if __name__ == "__main__":

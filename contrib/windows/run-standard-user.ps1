@@ -74,6 +74,30 @@ try {
     Get-Content (Join-Path $work 'installer-stdout.txt')
     Get-Content (Join-Path $work 'installer-stderr.txt')
     if ($installer.ExitCode -ne 0) { throw "Official Windows client installation failed: $($installer.ExitCode)" }
+    if ($env:KEYHOLE_TEST_ARTIFACTS -eq 'true') {
+        $artifactsRoot = Join-Path $work 'artifact-source'
+        New-Item -ItemType Directory -Path (Join-Path $artifactsRoot 'contrib/ci') -Force | Out-Null
+        Copy-Item (Join-Path $repository 'contrib/ci/check_artifacts.py') (Join-Path $artifactsRoot 'contrib/ci/check_artifacts.py')
+        Copy-Item (Join-Path $repository 'contrib/windows') (Join-Path $artifactsRoot 'contrib/windows') -Recurse
+        foreach ($item in @('tests', '.codex-plugin', 'dist')) {
+            Copy-Item (Join-Path $repository $item) (Join-Path $artifactsRoot $item) -Recurse
+        }
+        Copy-Item (Get-Command uv).Source (Join-Path $work 'uv.exe')
+        $artifactEntry = Join-Path $artifactsRoot 'check.py'
+        @'
+import os, runpy
+from pathlib import Path
+os.environ['PATH'] = str(Path.cwd().parent) + os.pathsep + os.environ['PATH']
+os.environ['UV_CACHE_DIR'] = str(Path.cwd() / 'uv-cache')
+runpy.run_path('contrib/ci/check_artifacts.py', run_name='__main__')
+'@ | Set-Content $artifactEntry -Encoding utf8
+        $artifacts = Start-Process -FilePath $python -ArgumentList "`"$artifactEntry`"" -Credential $credential `
+            -WorkingDirectory $artifactsRoot -LoadUserProfile -Wait -PassThru `
+            -RedirectStandardOutput (Join-Path $work 'artifacts-stdout.txt') -RedirectStandardError (Join-Path $work 'artifacts-stderr.txt')
+        Get-Content (Join-Path $work 'artifacts-stdout.txt')
+        Get-Content (Join-Path $work 'artifacts-stderr.txt')
+        if ($artifacts.ExitCode -ne 0) { throw "Windows distribution installation failed: $($artifacts.ExitCode)" }
+    }
 } finally {
     Remove-LocalUser -Name $name
 }

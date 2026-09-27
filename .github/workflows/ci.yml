@@ -60,7 +60,7 @@ jobs:
       - run: uv run --no-sync python contrib/glama/smoke_test.py --image keyhole-glama-test
 
   windows-cli:
-    name: Windows unsupported-platform message
+    name: Windows CLI smoke
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
@@ -70,8 +70,8 @@ jobs:
       - run: uv sync --locked
       - run: uv run keyhole --help
       - run: uv run keyhole --version
-      - name: Reject unsupported commands without a traceback
-        run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
+      - name: Diagnose an unconfigured disposable state without modifying it
+        run: uv run python -c "import json, subprocess, tempfile; from pathlib import Path; p=Path(tempfile.mkdtemp())/'unconfigured'; r=subprocess.run(['keyhole','--state-dir',str(p),'status','--redact'],capture_output=True,encoding='utf-8'); assert r.returncode == 0, r.stderr; value=json.loads(r.stdout); assert not value['configured']; assert value['open_workspace_count'] == 0; assert not p.exists()"
 
   windows-feasibility:
     name: Windows native / ${{ matrix.os }} / Python ${{ matrix.python }} (acceptance pending)
@@ -88,10 +88,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
+      - uses: astral-sh/setup-uv@v7
       - name: Install candidate dependencies
-        run: python -m pip install .
+        run: uv pip install --system --python python .
+      - name: Build the wheel and source archive
+        run: uv build
       - name: Run the standalone probe as a standard user
         shell: pwsh
+        env:
+          KEYHOLE_TEST_ARTIFACTS: ${{ matrix.python == '3.11' || matrix.python == '3.14' }}
         run: ./contrib/windows/run-standard-user.ps1
       - uses: actions/upload-artifact@v4
         if: always()
@@ -103,4 +108,6 @@ jobs:
             ${{ runner.temp }}/keyhole-windows/integration-*.txt
             ${{ runner.temp }}/keyhole-windows/installer-*.txt
             ${{ runner.temp }}/keyhole-windows/common-*.txt
+            ${{ runner.temp }}/keyhole-windows/artifacts-*.txt
+            ${{ runner.temp }}/keyhole-windows/startup-*.txt
           if-no-files-found: warn

@@ -30,10 +30,16 @@ def query(script):
         "$ErrorActionPreference='Stop'; "
         "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); " + script
     )
+    # MCP launchers may omit PSModulePath. Windows PowerShell then searches the
+    # user's default module locations, which can stall module discovery. These
+    # fixed OS queries need only the modules shipped beside powershell.exe.
+    env = dict(os.environ)
+    env["PSMODULEPATH"] = str(executable.parent / "Modules")
     try:
         result = subprocess.run(
             [str(executable), "-NoProfile", "-NonInteractive", "-Command", command],
             stdin=subprocess.DEVNULL,
+            env=env,
             capture_output=True,
             encoding="utf-8",
             timeout=20,
