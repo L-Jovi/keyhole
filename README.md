@@ -11,6 +11,7 @@ Real ChatGPT responses and checked local files, edited into a walkthrough with f
 waiting are omitted; response text is unchanged. Open read-only → allow an edit → restore → close access.
 
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/keyhole-mcp.svg)](https://pypi.org/project/keyhole-mcp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/L-Jovi/keyhole/blob/main/LICENSE)
 
 Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac or Linux computer, plus a command-line
@@ -37,11 +38,16 @@ Close the last folder and the tunnel stops. [Compare related projects](https://g
 
 ## Start here
 
-**[Install the published v0.3.2 release →](https://github.com/L-Jovi/keyhole/blob/v0.3.2/docs/setup.md)**
+**[Follow the complete setup guide →](docs/setup.md)**
 
-The [upcoming v0.4.0 setup wizard](https://github.com/L-Jovi/keyhole/blob/main/docs/setup.md) adds automatic verified client installation, resumable setup
-and readable diagnostics. It is currently in source; the v0.3.2 wheel does not include these changes.
-PyPI publication is pending, so `uv tool install keyhole-mcp` is not advertised as a working install yet.
+```sh
+uv tool install keyhole-mcp
+keyhole setup
+```
+
+The setup wizard can download the verified official client, resume incomplete configuration and open a
+read-only example. If PyPI is unavailable, use the exact wheel URL from
+[GitHub Releases](https://github.com/L-Jovi/keyhole/releases).
 
 That is the complete first-time path: check your account access, install the tools, connect your own tunnel,
 create a private ChatGPT app, and read a real demo file. Follow it once, from top to bottom. No Python, Git,
@@ -184,7 +190,7 @@ Threat model, what is out of scope, and how to report a vulnerability: [SECURITY
 | `keyhole purge-history --before DATE --confirm` | Permanently delete completed history before a date |
 
 Commands print JSON by default; `"ok": false` comes with an `error.code` you can act on.
-`status --human` prints readable text. New setup/status options require the upcoming release or a source build.
+`status --human` prints readable text. The setup/status options above require Keyhole 0.4.0 or later.
 
 | Tool ChatGPT calls | Effect |
 | --- | --- |

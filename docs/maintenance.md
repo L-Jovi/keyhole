@@ -14,8 +14,9 @@ The setup/status options below require 0.4.0 or later; v0.3.2 users should use i
   Do not use `pip install keyhole`: that PyPI
   name belongs to an unrelated project.
 - **Distribution rename:** releases from 0.3.2 use `keyhole-mcp`; the CLI and Python module remain `keyhole`.
-  When upgrading from 0.3.1, first run `uv tool uninstall keyhole`, then `uv tool install WHEEL_URL` with the
-  actual new release URL. This removes the old executable entry without deleting grants, keys or history.
+  When upgrading from 0.3.1, first run `uv tool uninstall keyhole`, then `uv tool install keyhole-mcp`.
+  This removes the old executable entry without deleting grants, keys or history. The release wheel
+  URL remains an alternative to the PyPI package name.
 - **Tool definitions:** refresh the private app in ChatGPT only when the changelog says definitions changed.
   Then start a new chat. Opening folders, changing permissions and renaming the app do not require Refresh.
 - **Keyhole-managed tunnel-client:** `keyhole setup --update-client` installs the version pinned by the
