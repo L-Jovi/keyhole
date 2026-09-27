@@ -17,7 +17,6 @@ POSIX_ONLY = {
     "test_links_traversal_protected_controls_and_readonly_mode": "POSIX link error and mode semantics",
     "test_history_is_bounded_private_and_pending_not_purged": "POSIX recovery database mode bits",
     "test_interrupted_exclusive_creation_cleans_only_its_stage": "POSIX hard-link publication; Windows uses exclusive rename",
-    "test_interrupted_mkdir_without_durable_identity_refuses_restore": "POSIX dir_fd mutation injected by test",
     "test_process_cleanup_requires_the_exact_module_and_state_option": "POSIX ps/uid; native live-process checks run separately",
     "test_next_command_keeps_custom_paths_and_quotes_them": "POSIX shell hints; Windows uses PowerShell quoting",
 }

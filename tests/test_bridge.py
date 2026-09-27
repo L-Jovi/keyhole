@@ -84,8 +84,10 @@ class FixtureCase(unittest.TestCase):
         self.b = self.base / "Beta"
         self.a.mkdir()
         self.b.mkdir()
-        (self.a / "proof.md").write_text(UNICODE_LINE + "\nline two\n", encoding="utf-8")
-        (self.b / "other.txt").write_text("independent evidence\n")
+        (self.a / "proof.md").write_text(
+            UNICODE_LINE + "\nline two\n", encoding="utf-8", newline="\n"
+        )
+        (self.b / "other.txt").write_bytes(b"independent evidence\n")
         self.store = StateStore(self.state)
         self.runtime = FakeRuntime()
         self.manager = Manager(self.store, self.runtime)

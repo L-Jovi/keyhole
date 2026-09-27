@@ -33,6 +33,7 @@ def query(script):
     try:
         result = subprocess.run(
             [str(executable), "-NoProfile", "-NonInteractive", "-Command", command],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             encoding="utf-8",
             timeout=20,
