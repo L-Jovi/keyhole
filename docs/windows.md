@@ -142,6 +142,7 @@ Use `status --redact` when asking for help, rather than posting the full state o
 | `keyhole` is not recognized | Run `uv tool dir --bin`, add that directory to this window's PATH, then use `uv tool update-shell` for future terminals. |
 | A saved client is missing | Rerun setup, or use `keyhole --tunnel-client 'C:\Tools\tunnel-client.exe' setup` with your actual executable. |
 | Download interrupted or checksum mismatch | Rerun setup; check network/proxy and disk space. Do not disable the checksum check. |
+| `client_install_busy` | Windows did not release an installation file or denied access. Wait briefly and rerun setup; existing client versions remain intact. |
 | Link, cloud placeholder or unsupported filesystem | Try the new local NTFS sample folder; use the actual local path rather than a junction or network alias. |
 | A file cannot be edited | Close editors holding incompatible locks. Read-only ACLs/attributes, EFS encryption, NTFS compression/sparse files and named alternate streams prevent replacement; Keyhole does not remove those protections or metadata. |
 | `windows_process_query_failed` | Windows PowerShell or WMI could not answer the OS identity query. Sharing stays closed; do not solve this by running Keyhole as administrator. |

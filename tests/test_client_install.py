@@ -131,6 +131,43 @@ class ClientInstallTests(unittest.TestCase):
         parent = client_install.destination(self.store, self.release).parent
         self.assertEqual(list(parent.glob(".install-*")), [])
 
+    @unittest.skipUnless(sys.platform == "win32", "requires native Windows installation")
+    def test_windows_busy_publication_retries_without_replacing_an_existing_client(self):
+        import ctypes
+
+        blob = self.archive()
+        rename = fileio.rename
+        attempts = 0
+
+        def temporarily_busy(*args, **kwargs):
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                raise ctypes.WinError(5)
+            return rename(*args, **kwargs)
+
+        with (
+            patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")),
+            patch.object(fileio, "rename", side_effect=temporarily_busy),
+            patch("keyhole.client_install.time.sleep"),
+        ):
+            client = Path(self.install_with(blob))
+        self.assertEqual(client.read_text(), "synthetic file")
+        self.assertEqual(attempts, 3)
+        before = client.read_bytes()
+        previous_path = client
+        self.release["target"] += "-retry-test"
+        with (
+            patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")),
+            patch.object(fileio, "rename", side_effect=ctypes.WinError(32)),
+            patch("keyhole.client_install.time.sleep"),
+            self.assertRaises(KeyholeError) as caught,
+        ):
+            self.install_with(blob)
+        self.assertEqual(caught.exception.code, "client_install_busy")
+        self.assertEqual(previous_path.read_bytes(), before)
+        self.assertFalse(client_install.destination(self.store, self.release).exists())
+
     def test_network_failure_has_no_server_error_body(self):
         with patch("urllib.request.build_opener") as opener:
             opener.return_value.open.side_effect = urllib.error.URLError("PRIVATE-MARKER")

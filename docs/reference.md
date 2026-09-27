@@ -37,6 +37,7 @@ prompts go to stderr; cancelling does not discard existing configuration or hist
 | `demo_exists` | The requested directory or demo workspace already exists; it was not overwritten. |
 | `client_download_failed`, `client_checksum_mismatch`, `client_archive_invalid` | Download failed or violated the pinned size, hash or archive layout. No unverified client is executed. |
 | `client_not_managed`, `client_install_damaged` | External client cannot be updated here, or an existing managed bundle differs from verified bytes. |
+| `client_install_busy` | Windows still has an installation file in use or denies access after bounded retries. Wait briefly and rerun setup; the previous client was not replaced. |
 | `invalid_tunnel_id`, `invalid_key` | The value does not look like a tunnel id / a non-admin runtime key. |
 | `native_client_missing`, `native_client_failed` | `tunnel-client` not found, or `--version` failed. |
 | `client_version_changed`, `client_version_untested` | Installed version differs from the accepted one; or an untested version was not confirmed. |

@@ -10,6 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -252,13 +253,42 @@ def install(store: StateStore, release: dict) -> str:
                         finally:
                             os.close(staged)
                     return str(target / client_name(release))
-                fileio.rename(stage, target.name, src_dir_fd=parent, dst_dir_fd=parent)
+
+                def publish():
+                    walk.validate()
+                    fileio.rename(stage, target.name, src_dir_fd=parent, dst_dir_fd=parent)
+
+                finish_staging_operation(publish)
                 created = False
                 fileio.fsync(parent)
         finally:
-            if created:
-                # Every file in staging was created here; no user directories are removed.
-                with contextlib.suppress(FileNotFoundError):
-                    fileio.remove_staging(stage, directory=parent)
-            os.close(parent)
+            try:
+                if created:
+                    # Every file in staging was created here; no user directories are removed.
+                    with contextlib.suppress(FileNotFoundError):
+                        finish_staging_operation(
+                            lambda: fileio.remove_staging(stage, directory=parent)
+                        )
+            finally:
+                os.close(parent)
     return str(target / client_name(release))
+
+
+def finish_staging_operation(operation):
+    # An exited executable can still have an image handle open on Windows.
+    # Retry only our private staging operations, through the same held parent;
+    # never replace a target, alter ACLs or disable a security product to proceed.
+    for attempt in range(31):
+        try:
+            return operation()
+        except OSError as exc:
+            if not fileio.WINDOWS or getattr(exc, "winerror", None) not in (5, 32, 33):
+                raise
+            if attempt == 30:
+                raise KeyholeError(
+                    "client_install_busy",
+                    "Windows could not finish the private client installation. A file may still be "
+                    "in use or access may be restricted. Wait briefly and rerun setup. "
+                    "An existing client was not replaced.",
+                ) from exc
+            time.sleep(0.1)
