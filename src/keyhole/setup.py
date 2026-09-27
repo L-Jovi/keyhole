@@ -201,7 +201,8 @@ def run(args) -> dict:
         return {**result, "next_step": store.command("status", "--human")}
     if sys.platform.startswith("linux"):
         say(
-            "Linux: automated checks are available; real ChatGPT acceptance is still required for formal support."
+            "Linux: ChatGPT read/edit/restore/close verified on Ubuntu 24.04 x86_64; "
+            "Ubuntu 22.04 also has automated coverage. See docs/platforms.md for the tested scope."
         )
     tunnel_id = config.get("tunnel_id")
     if not tunnel_id:

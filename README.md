@@ -13,7 +13,7 @@ waiting are omitted; response text is unchanged. Open read-only → allow an edi
 [![CI](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml/badge.svg)](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/L-Jovi/keyhole/blob/main/LICENSE)
 
-Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac, plus a command-line
+Keyhole is a small [MCP](https://modelcontextprotocol.io) server that runs on your Mac or Linux computer, plus a command-line
 tool, `keyhole`. You open a folder with `keyhole open`; ChatGPT on the web can then read it through OpenAI's
 official [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). Give a folder
 `rw`, and ChatGPT can also create and edit text files in it. Every edit is checked against the file's current
@@ -45,7 +45,7 @@ PyPI publication is pending, so `uv tool install keyhole-mcp` is not advertised 
 
 That is the complete first-time path: check your account access, install the tools, connect your own tunnel,
 create a private ChatGPT app, and read a real demo file. Follow it once, from top to bottom. No Python, Git,
-Node, Docker or tmux installation is required. You need a Mac, ChatGPT Developer mode and permission to create
+Node, Docker or tmux installation is required. You need macOS or Ubuntu Linux, ChatGPT Developer mode and permission to create
 an OpenAI Platform tunnel and restricted runtime key. Budget about 15 minutes after account access is ready.
 
 The GitHub repository supplies the software. **You create your own tunnel and private ChatGPT app**;
@@ -64,7 +64,7 @@ stays under your local control.
 | --- | --- |
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
-| Linux | Experimental. Ubuntu 22.04/24.04 Python 3.11–3.14 CI and artifact checks passed; real Linux-hosted ChatGPT acceptance is still pending. [Evidence and criteria](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
+| Linux | Supported on Ubuntu x86_64. Real ChatGPT read/edit/restore/close verified on Ubuntu 24.04; Ubuntu 22.04/24.04 have Python 3.11–3.14 CI and artifact coverage. Other distributions and Linux ARM are untested. [Evidence and limits](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
 | Windows | Unsupported. CI checks the refusal message and separate NTFS feasibility probes; neither establishes Windows support. |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
@@ -75,14 +75,14 @@ stays under your local control.
 ```mermaid
 flowchart LR
     C[ChatGPT web] -->|tool call| T[OpenAI tunnel endpoint]
-    T <-->|outbound long-poll only| TC[tunnel-client on your Mac]
+    T <-->|outbound long-poll only| TC[tunnel-client on your computer]
     TC -->|stdio JSON-RPC| K[keyhole MCP server]
     K -->|opened folders only| F[(Your files)]
     CLI[keyhole CLI] -.->|grants, ro / rw| K
 ```
 
 `tunnel-client` is OpenAI's open-source client. It opens an outbound connection and forwards each request to
-the Keyhole server over stdio; no port on your Mac is exposed. The server reads and writes only inside folders
+the Keyhole server over stdio; no port on your computer is exposed. The server reads and writes only inside folders
 you opened, and refuses anything else.
 
 ## Daily use
