@@ -190,9 +190,11 @@ class WindowsIntegrationTests(unittest.TestCase):
         self.manager.access("Demo", "rw")
         original = self.note.read_bytes()
         digest = hashlib.sha256(original).hexdigest()
-        with fileio.win.walk(self.shared) as parent:
-            with fileio.win.child(parent, self.note.name) as opened:
-                original_acl = security.file_dacl_signature(security.snapshot(opened.value))
+        with (
+            fileio.win.walk(self.shared) as parent,
+            fileio.win.child(parent, self.note.name) as opened,
+        ):
+            original_acl = security.file_dacl_signature(security.snapshot(opened.value))
         self.mutate("mkdir", path="Review")
         copied = self.mutate(
             "copy", path=self.note.name, destination="Review/copy.md", expected_sha256=digest
@@ -207,11 +209,13 @@ class WindowsIntegrationTests(unittest.TestCase):
         self.assertFalse(self.note.exists())
         self.mutate("restore", change_id=moved["change_id"])
         self.assertEqual(self.note.read_bytes(), original)
-        with fileio.win.walk(self.shared) as parent:
-            with fileio.win.child(parent, self.note.name) as opened:
-                self.assertEqual(
-                    security.file_dacl_signature(security.snapshot(opened.value)), original_acl
-                )
+        with (
+            fileio.win.walk(self.shared) as parent,
+            fileio.win.child(parent, self.note.name) as opened,
+        ):
+            self.assertEqual(
+                security.file_dacl_signature(security.snapshot(opened.value)), original_acl
+            )
         self.mutate("restore", change_id=copied["change_id"])
         self.assertFalse((self.shared / "Review/copy.md").exists())
 
