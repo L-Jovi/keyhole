@@ -29,6 +29,19 @@ try {
     Get-Content (Join-Path $work 'stderr.txt')
     if ($process.ExitCode -ne 0) { throw "Feasibility probe failed: $($process.ExitCode)" }
     if (-not (Test-Path $report)) { throw 'The probe did not create its evidence report.' }
+    $repository = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+    $package = Join-Path $work 'keyhole'
+    New-Item -ItemType Directory -Path $package | Out-Null
+    Copy-Item (Join-Path $repository 'src/keyhole/__init__.py') $package
+    Copy-Item (Join-Path $repository 'src/keyhole/windows_files.py') $package
+    $nativeTests = Join-Path $work 'test_windows_files.py'
+    Copy-Item (Join-Path $repository 'tests/test_windows_files.py') $nativeTests
+    $native = Start-Process -FilePath $python -ArgumentList "`"$nativeTests`" -v" -Credential $credential `
+        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $work 'native-stdout.txt') -RedirectStandardError (Join-Path $work 'native-stderr.txt')
+    Get-Content (Join-Path $work 'native-stdout.txt')
+    Get-Content (Join-Path $work 'native-stderr.txt')
+    if ($native.ExitCode -ne 0) { throw "Native filesystem tests failed: $($native.ExitCode)" }
 } finally {
     Remove-LocalUser -Name $name
 }

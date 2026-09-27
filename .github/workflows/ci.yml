@@ -74,19 +74,26 @@ jobs:
         run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
 
   windows-feasibility:
-    name: Windows NTFS primitives (not platform support)
-    runs-on: windows-2025
+    name: Windows NTFS primitives / ${{ matrix.os }} (not platform support)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          architecture: x64
       - name: Run the standalone probe as a standard user
         shell: pwsh
         run: ./contrib/windows/run-standard-user.ps1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: windows-feasibility
-          path: ${{ runner.temp }}/keyhole-windows/report.json
+          name: windows-feasibility-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/keyhole-windows/report.json
+            ${{ runner.temp }}/keyhole-windows/native-*.txt
           if-no-files-found: warn
