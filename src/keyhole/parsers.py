@@ -12,7 +12,7 @@ import io
 import json
 import math
 import os
-import resource
+import sys
 import warnings
 import zipfile
 
@@ -376,18 +376,30 @@ def parse(data, kind, options):
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="keyhole.parsers")
-    parser.add_argument("--input-fd", type=int, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--input-fd", type=int)
+    inputs.add_argument("--input-handle", type=int)
     parser.add_argument("--kind", required=True)
     parser.add_argument("--generation", required=True)
     parser.add_argument("--nonce", required=True)
     parser.add_argument("--state-dir", help="owning runtime identity; never opened by the parser")
     args = parser.parse_args()
-    resource.setrlimit(resource.RLIMIT_CPU, (15, 16))
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-    # macOS can reject RLIMIT_AS. CPU, wall-clock and input limits still apply;
-    # this process has the user's OS permissions and is not a network/filesystem sandbox.
-    with contextlib.suppress(OSError, ValueError):
-        resource.setrlimit(resource.RLIMIT_AS, (2 * 1024**3, 2 * 1024**3))
+    if sys.platform == "win32":
+        from .windows_parser import limit_current_process, source_fd
+
+        limit_current_process()
+        require(
+            args.input_handle is not None, "invalid_input", "A validated input handle is required."
+        )
+        args.input_fd = source_fd(args.input_handle)
+    else:
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_CPU, (15, 16))
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        # macOS can reject RLIMIT_AS. Process separation is not an OS sandbox.
+        with contextlib.suppress(OSError, ValueError):
+            resource.setrlimit(resource.RLIMIT_AS, (2 * 1024**3, 2 * 1024**3))
     try:
         with os.fdopen(args.input_fd, "rb") as source:
             data = source.read(64 * 1024 * 1024 + 1)

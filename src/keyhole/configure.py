@@ -4,16 +4,16 @@ import contextlib
 import json
 import os
 import re
-import stat
 from pathlib import Path
 from uuid import uuid4
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .filesystem import local_path_error
 from .state import StateStore
 
 TUNNEL_ID = re.compile(r"tunnel_[a-z0-9]{32}")
-DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+DIR_FLAGS = os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW
 
 
 def validate_tunnel_id(value: str) -> None:
@@ -43,24 +43,23 @@ def open_private_directory(path: Path) -> int:
         "invalid_state_dir",
         "The state directory must be an absolute, normalized path.",
     )
-    fd = os.open("/", DIR_FLAGS)
+    fd = fileio.open(path.anchor, DIR_FLAGS)
     try:
         for part in path.parts[1:]:
             try:
                 try:
-                    child = os.open(part, DIR_FLAGS, dir_fd=fd)
+                    child = fileio.open(part, DIR_FLAGS, dir_fd=fd)
                 except FileNotFoundError:
-                    os.mkdir(part, mode=0o700, dir_fd=fd)
-                    child = os.open(part, DIR_FLAGS, dir_fd=fd)
+                    fileio.mkdir(part, mode=0o700, dir_fd=fd)
+                    child = fileio.open(part, DIR_FLAGS, dir_fd=fd)
             except OSError as exc:
                 raise local_path_error(path, exc) from exc
             os.close(fd)
             fd = child
-        st = os.fstat(fd)
         require(
-            st.st_uid == os.getuid() and stat.S_IMODE(st.st_mode) == 0o700,
+            fileio.private(fd, 0o700),
             "state_permissions",
-            f"{path} must be owned by you with mode 0700.",
+            f"{path} must be private and owned by you (0700 on POSIX; owner-only ACL on Windows).",
         )
         return fd
     except BaseException:
@@ -69,11 +68,13 @@ def open_private_directory(path: Path) -> int:
 
 
 def write_exclusive(fd: int, name: str, content: bytes) -> None:
-    child = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd)
+    child = fileio.open(
+        name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | fileio.O_NOFOLLOW, 0o600, dir_fd=fd
+    )
     with os.fdopen(child, "wb") as out:
         out.write(content)
         out.flush()
-        os.fsync(out.fileno())
+        fileio.fsync(out.fileno())
 
 
 def save_runtime(path: Path, tunnel_id: str, key: str, client_version: str) -> dict:
@@ -85,7 +86,7 @@ def save_runtime(path: Path, tunnel_id: str, key: str, client_version: str) -> d
     try:
         for name in ("runtime.key", "runtime.json"):
             try:
-                os.stat(name, dir_fd=fd, follow_symlinks=False)
+                fileio.stat(name, dir_fd=fd, follow_symlinks=False)
             except FileNotFoundError:
                 continue
             raise KeyholeError(
@@ -102,10 +103,10 @@ def save_runtime(path: Path, tunnel_id: str, key: str, client_version: str) -> d
             "tunnel_client_version": client_version,
         }
         write_exclusive(fd, "runtime.json", (json.dumps(config, indent=2) + "\n").encode())
-        os.fsync(fd)
+        fileio.fsync(fd)
     except BaseException:
         if key_created:
-            os.unlink("runtime.key", dir_fd=fd)
+            fileio.unlink("runtime.key", dir_fd=fd)
         raise
     finally:
         os.close(fd)
@@ -129,11 +130,11 @@ def rotate_key(store: StateStore, key: str) -> dict:
         tmp = f".runtime.key-{uuid4()}.tmp"
         try:
             write_exclusive(directory, tmp, (key + "\n").encode("ascii"))
-            os.replace(tmp, "runtime.key", src_dir_fd=directory, dst_dir_fd=directory)
-            os.fsync(directory)
+            fileio.replace(tmp, "runtime.key", src_dir_fd=directory, dst_dir_fd=directory)
+            fileio.fsync(directory)
         finally:
             with contextlib.suppress(FileNotFoundError):
-                os.unlink(tmp, dir_fd=directory)
+                fileio.unlink(tmp, dir_fd=directory)
     return {"rotated": True}
 
 
@@ -216,7 +217,7 @@ def complete_setup(
         if not present:
             with store.directory() as directory:
                 write_exclusive(directory, "runtime.key", (key + "\n").encode("ascii"))
-                os.fsync(directory)
+                fileio.fsync(directory)
         updated = {
             **current,
             "schema_version": 1,

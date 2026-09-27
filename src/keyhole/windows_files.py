@@ -6,6 +6,7 @@ See Microsoft's NtCreateFile and FILE_RENAME_INFORMATION documentation.
 """
 
 import ctypes
+import errno
 import os
 import re
 import sys
@@ -203,10 +204,10 @@ class Handle:
     def validate(self, *, directory):
         info = self.info()
         if info.attributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_OFFLINE):
-            raise OSError("Reparse points and offline placeholders are refused.")
-        if bool(info.attributes & FILE_ATTRIBUTE_DIRECTORY) != directory:
+            raise OSError(errno.ELOOP, "Reparse points and offline placeholders are refused.")
+        if directory is not None and bool(info.attributes & FILE_ATTRIBUTE_DIRECTORY) != directory:
             raise OSError("Unexpected file type.")
-        if not directory and info.links != 1:
+        if not info.attributes & FILE_ATTRIBUTE_DIRECTORY and info.links != 1:
             raise OSError("Only single-link regular files are allowed.")
 
     def detach_fd(self, *, writable=False):
@@ -294,7 +295,13 @@ def child(
             FILE_CREATE if create else FILE_OPEN,
             FILE_OPEN_REPARSE_POINT
             | FILE_SYNCHRONOUS_IO_NONALERT
-            | (FILE_DIRECTORY_FILE if directory else FILE_NON_DIRECTORY_FILE),
+            | (
+                FILE_DIRECTORY_FILE
+                if directory
+                else FILE_NON_DIRECTORY_FILE
+                if directory is False
+                else 0
+            ),
             None,
             0,
         )
@@ -343,4 +350,92 @@ def rename(source: Handle, parent: Handle, name: str, *, replace=False):
             size,
             FILE_RENAME_INFORMATION_EX,
         )
+    )
+
+
+class DirectoryInformation(ctypes.Structure):
+    _fields_ = [
+        ("NextEntryOffset", wintypes.DWORD),
+        ("FileIndex", wintypes.DWORD),
+        ("CreationTime", ctypes.c_longlong),
+        ("LastAccessTime", ctypes.c_longlong),
+        ("LastWriteTime", ctypes.c_longlong),
+        ("ChangeTime", ctypes.c_longlong),
+        ("EndOfFile", ctypes.c_longlong),
+        ("AllocationSize", ctypes.c_longlong),
+        ("FileAttributes", wintypes.DWORD),
+        ("FileNameLength", wintypes.DWORD),
+        ("EaSize", wintypes.DWORD),
+        ("ShortNameLength", ctypes.c_byte),
+        ("ShortName", wintypes.WCHAR * 12),
+        ("FileId", ctypes.c_longlong),
+        ("FileName", wintypes.WCHAR * 1),
+    ]
+
+
+kernel.GetFileInformationByHandleEx.argtypes = [
+    wintypes.HANDLE,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    wintypes.DWORD,
+]
+kernel.GetFileInformationByHandleEx.restype = wintypes.BOOL
+kernel.GetFinalPathNameByHandleW.argtypes = [
+    wintypes.HANDLE,
+    wintypes.LPWSTR,
+    wintypes.DWORD,
+    wintypes.DWORD,
+]
+kernel.GetFinalPathNameByHandleW.restype = wintypes.DWORD
+
+
+def names(directory: Handle):
+    """Enumerate through the same held directory used for relative opens."""
+    buffer = ctypes.create_string_buffer(65536)
+    info_class = 11  # FileIdBothDirectoryRestartInfo, then FileIdBothDirectoryInfo.
+    while True:
+        if not kernel.GetFileInformationByHandleEx(
+            directory.value, info_class, buffer, len(buffer)
+        ):
+            error = ctypes.get_last_error()
+            if error == 18:  # ERROR_NO_MORE_FILES
+                return
+            raise ctypes.WinError(error)
+        info_class = 10
+        offset = 0
+        while True:
+            info = DirectoryInformation.from_buffer(buffer, offset)
+            start = offset + DirectoryInformation.FileName.offset
+            end = start + info.FileNameLength
+            if info.FileNameLength % 2 or end > len(buffer):
+                raise OSError("Invalid native directory enumeration.")
+            name = buffer.raw[start:end].decode("utf-16-le")
+            if name not in (".", ".."):
+                yield name
+            if not info.NextEntryOffset:
+                break
+            if info.NextEntryOffset < DirectoryInformation.FileName.offset:
+                raise OSError("Invalid native directory offset.")
+            offset += info.NextEntryOffset
+
+
+def final_path(handle: Handle) -> str:
+    size = kernel.GetFinalPathNameByHandleW(handle.value, None, 0, 0)
+    if not size:
+        raise ctypes.WinError(ctypes.get_last_error())
+    buffer = ctypes.create_unicode_buffer(size + 1)
+    length = kernel.GetFinalPathNameByHandleW(handle.value, buffer, len(buffer), 0)
+    if not length or length >= len(buffer):
+        raise OSError("The final path changed while it was queried.")
+    path = buffer.value
+    if path.startswith("\\\\?\\"):
+        path = path[4:]
+    return path
+
+
+def remove(handle: Handle):
+    # FILE_DISPOSITION_INFORMATION_EX, DELETE | POSIX_SEMANTICS.
+    flags, status = wintypes.DWORD(1 | 2), IoStatusBlock()
+    check_status(
+        ntdll.NtSetInformationFile(handle.value, ctypes.byref(status), ctypes.byref(flags), 4, 64)
     )

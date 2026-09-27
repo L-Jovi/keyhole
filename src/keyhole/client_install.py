@@ -17,6 +17,7 @@ import zipfile
 from pathlib import Path
 from uuid import uuid4
 
+from . import file_ops as fileio
 from .configure import open_private_directory
 from .errors import KeyholeError, require
 from .filesystem import absolute_directory
@@ -128,17 +129,17 @@ def extract(archive, directory: int, release: dict) -> None:
             )
             for entry in entries:
                 mode = 0o700 if entry.filename in ("tunnel-client", "cloudflared") else 0o600
-                fd = os.open(
+                fd = fileio.open(
                     entry.filename,
-                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | fileio.O_NOFOLLOW,
                     mode,
                     dir_fd=directory,
                 )
                 with os.fdopen(fd, "wb") as out, bundle.open(entry) as source:
                     shutil.copyfileobj(source, out, length=1024 * 1024)
                     out.flush()
-                    os.fsync(out.fileno())
-            os.fsync(directory)
+                    fileio.fsync(out.fileno())
+            fileio.fsync(directory)
     except (zipfile.BadZipFile, RuntimeError, NotImplementedError) as exc:
         raise KeyholeError(
             "client_archive_invalid", "Invalid client ZIP; nothing was installed."
@@ -162,9 +163,11 @@ def install(store: StateStore, release: dict) -> str:
                     "path_changed",
                     "The client installation directory changed; retry setup.",
                 )
-                os.mkdir(stage, 0o700, dir_fd=parent)
+                fileio.mkdir(stage, 0o700, dir_fd=parent)
                 created = True
-                child = os.open(stage, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                child = fileio.open(
+                    stage, os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW, dir_fd=parent
+                )
                 try:
                     extract(archive, child, release)
                 finally:
@@ -186,28 +189,31 @@ def install(store: StateStore, release: dict) -> str:
                     # Setup can be cancelled after installation but before credentials are saved.
                     # Reuse only bytes that match the newly verified archive, never a stale receipt.
                     with absolute_directory(target) as (existing, existing_walk):
-                        st = os.fstat(existing)
                         require(
-                            st.st_uid == os.getuid() and stat.S_IMODE(st.st_mode) == 0o700,
+                            fileio.private(existing, 0o700),
                             "state_permissions",
                             "Unsafe managed client directory.",
                         )
-                        staged = os.open(
-                            stage, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent
+                        staged = fileio.open(
+                            stage,
+                            os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW,
+                            dir_fd=parent,
                         )
                         try:
                             require(
-                                set(os.listdir(existing)) == set(os.listdir(staged)),
+                                set(fileio.listdir(existing)) == set(fileio.listdir(staged)),
                                 "client_install_damaged",
                                 "Managed client files differ from the official bundle.",
                             )
-                            for name in os.listdir(staged):
-                                actual = os.open(
+                            for name in fileio.listdir(staged):
+                                actual = fileio.open(
                                     name,
-                                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                    os.O_RDONLY | fileio.O_NOFOLLOW | fileio.O_NONBLOCK,
                                     dir_fd=existing,
                                 )
-                                expected = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=staged)
+                                expected = fileio.open(
+                                    name, os.O_RDONLY | fileio.O_NOFOLLOW, dir_fd=staged
+                                )
                                 with (
                                     os.fdopen(actual, "rb") as old,
                                     os.fdopen(expected, "rb") as new,
@@ -219,7 +225,12 @@ def install(store: StateStore, release: dict) -> str:
                                     require(
                                         stat.S_ISREG(old_stat.st_mode)
                                         and old_stat.st_nlink == 1
-                                        and old_stat.st_uid == os.getuid()
+                                        and fileio.private(
+                                            old.fileno(),
+                                            0o700
+                                            if os.name == "posix" and old_stat.st_mode & 0o100
+                                            else 0o600,
+                                        )
                                         and old_stat.st_mode == new_stat.st_mode
                                         and old_stat.st_size == new_stat.st_size
                                         and hashlib.file_digest(old, "sha256").digest()
@@ -231,13 +242,13 @@ def install(store: StateStore, release: dict) -> str:
                         finally:
                             os.close(staged)
                     return str(target / "tunnel-client")
-                os.rename(stage, target.name, src_dir_fd=parent, dst_dir_fd=parent)
+                fileio.rename(stage, target.name, src_dir_fd=parent, dst_dir_fd=parent)
                 created = False
-                os.fsync(parent)
+                fileio.fsync(parent)
         finally:
             if created:
                 # Every file in staging was created here; no user directories are removed.
                 with contextlib.suppress(FileNotFoundError):
-                    shutil.rmtree(stage, dir_fd=parent)
+                    fileio.remove_staging(stage, directory=parent)
             os.close(parent)
     return str(target / "tunnel-client")

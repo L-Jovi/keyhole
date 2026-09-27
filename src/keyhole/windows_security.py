@@ -237,3 +237,30 @@ def restore_dacl(handle: int, value: bytes) -> None:
         else UNPROTECTED_DACL_SECURITY_INFORMATION
     )
     checked(advapi.SetKernelObjectSecurity(handle, flags, buffer))
+
+
+advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [
+    ctypes.c_void_p,
+    wintypes.DWORD,
+    wintypes.DWORD,
+    ctypes.POINTER(wintypes.LPWSTR),
+    ctypes.POINTER(wintypes.DWORD),
+]
+
+
+def to_sddl(value: bytes) -> str:
+    buffer = descriptor_buffer(value)
+    output, size = wintypes.LPWSTR(), wintypes.DWORD()
+    checked(
+        advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            buffer,
+            1,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            ctypes.byref(output),
+            ctypes.byref(size),
+        )
+    )
+    try:
+        return output.value
+    finally:
+        kernel.LocalFree(ctypes.cast(output, ctypes.c_void_p))

@@ -1,7 +1,6 @@
 """Descriptor-relative access with no-follow traversal and identity rechecks."""
 
 import errno
-import fcntl
 import hashlib
 import os
 import stat
@@ -9,11 +8,12 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .policy import DIR_LIMIT, FILE_LIMIT, check_relative, excluded
 
-DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
-FILE_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+DIR_FLAGS = os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW | fileio.O_CLOEXEC
+FILE_FLAGS = os.O_RDONLY | fileio.O_NOFOLLOW | fileio.O_NONBLOCK | fileio.O_CLOEXEC
 
 
 def identity(st: os.stat_result) -> tuple:
@@ -32,15 +32,7 @@ def version(st: os.stat_result) -> tuple:
     )
 
 
-def canonical_path(fd: int) -> Path | None:
-    """The kernel's own spelling of an open directory, or None where the platform cannot say."""
-    if hasattr(fcntl, "F_GETPATH"):
-        raw = fcntl.fcntl(fd, fcntl.F_GETPATH, bytes(1024))
-        return Path(os.fsdecode(raw.rstrip(b"\0")))
-    try:
-        return Path(os.readlink(f"/proc/self/fd/{fd}"))
-    except OSError:
-        return None
+canonical_path = fileio.canonical_path
 
 
 def local_path_error(path: Path, exc: OSError) -> KeyholeError:
@@ -90,21 +82,21 @@ class Walk:
             "invalid_path",
             "An absolute normalized local root is required.",
         )
-        self.fds.append(os.open("/", DIR_FLAGS))
+        self.fds.append(fileio.open(path.anchor, DIR_FLAGS))
         for part in path.parts[1:]:
             self.child(part, directory=True)
         return self.fds[-1]
 
     def child(self, name: str, *, directory: bool) -> int:
         parent = self.fds[-1]
-        fd = os.open(name, DIR_FLAGS if directory else FILE_FLAGS, dir_fd=parent)
+        fd = fileio.open(name, DIR_FLAGS if directory else FILE_FLAGS, dir_fd=parent)
         self.fds.append(fd)
         self.edges.append((parent, name, fd))
         return fd
 
     def validate(self) -> None:
         for parent, name, fd in self.edges:
-            current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            current = fileio.stat(name, dir_fd=parent, follow_symlinks=False)
             require(
                 not stat.S_ISLNK(current.st_mode) and identity(current) == identity(os.fstat(fd)),
                 "path_changed",
@@ -209,7 +201,7 @@ class SafeFS:
         parts = check_relative(path, self.extra)
         with self.open(path, directory=True) as (fd, before, walk):
             items, omitted, seen = [], 0, 0
-            with os.scandir(fd) as entries:
+            with fileio.scandir(fd) as entries:
                 for entry in entries:
                     seen += 1
                     require(
@@ -221,7 +213,11 @@ class SafeFS:
                     if excluded(child_parts, self.extra):
                         omitted += 1
                         continue
-                    st = entry.stat(follow_symlinks=False)
+                    try:
+                        st = entry.stat(follow_symlinks=False)
+                    except (OSError, ValueError):
+                        omitted += 1
+                        continue
                     is_dir = stat.S_ISDIR(st.st_mode)
                     if not is_dir and (not stat.S_ISREG(st.st_mode) or st.st_nlink != 1):
                         omitted += 1

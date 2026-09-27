@@ -32,9 +32,7 @@ try {
     $repository = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
     $package = Join-Path $work 'keyhole'
     New-Item -ItemType Directory -Path $package | Out-Null
-    Copy-Item (Join-Path $repository 'src/keyhole/__init__.py') $package
-    Copy-Item (Join-Path $repository 'src/keyhole/windows_files.py') $package
-    Copy-Item (Join-Path $repository 'src/keyhole/windows_security.py') $package
+    Copy-Item (Join-Path $repository 'src/keyhole/*') $package -Recurse
     $nativeTests = Join-Path $work 'test_windows_files.py'
     Copy-Item (Join-Path $repository 'tests/test_windows_files.py') $nativeTests
     $native = Start-Process -FilePath $python -ArgumentList "`"$nativeTests`" -v" -Credential $credential `
@@ -43,6 +41,14 @@ try {
     Get-Content (Join-Path $work 'native-stdout.txt')
     Get-Content (Join-Path $work 'native-stderr.txt')
     if ($native.ExitCode -ne 0) { throw "Native filesystem tests failed: $($native.ExitCode)" }
+    $integrationTests = Join-Path $work 'test_windows_integration.py'
+    Copy-Item (Join-Path $repository 'tests/test_windows_integration.py') $integrationTests
+    $integration = Start-Process -FilePath $python -ArgumentList "`"$integrationTests`" -v" -Credential $credential `
+        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $work 'integration-stdout.txt') -RedirectStandardError (Join-Path $work 'integration-stderr.txt')
+    Get-Content (Join-Path $work 'integration-stdout.txt')
+    Get-Content (Join-Path $work 'integration-stderr.txt')
+    if ($integration.ExitCode -ne 0) { throw "Native integration tests failed: $($integration.ExitCode)" }
 } finally {
     Remove-LocalUser -Name $name
 }

@@ -86,6 +86,8 @@ jobs:
         with:
           python-version: "3.12"
           architecture: x64
+      - name: Install candidate dependencies
+        run: python -m pip install .
       - name: Run the standalone probe as a standard user
         shell: pwsh
         run: ./contrib/windows/run-standard-user.ps1
@@ -96,4 +98,5 @@ jobs:
           path: |
             ${{ runner.temp }}/keyhole-windows/report.json
             ${{ runner.temp }}/keyhole-windows/native-*.txt
+            ${{ runner.temp }}/keyhole-windows/integration-*.txt
           if-no-files-found: warn

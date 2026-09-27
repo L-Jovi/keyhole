@@ -7,6 +7,7 @@ import webbrowser
 from pathlib import Path
 
 from . import configure
+from . import file_ops as fileio
 from .client_install import asset, destination, install
 from .diagnostics import human_status
 from .errors import KeyholeError, require
@@ -129,17 +130,19 @@ def create_demo(store: StateStore, runtime: NativeRuntime, path: Path) -> dict:
         )
         with absolute_directory(path.parent) as (parent, walk):
             try:
-                os.mkdir(path.name, mode=0o700, dir_fd=parent)
+                fileio.mkdir(path.name, mode=0o700, dir_fd=parent)
             except FileExistsError:
                 raise KeyholeError(
                     "demo_exists",
                     "The demo directory already exists; nothing was overwritten. "
                     "Rerun setup and choose a new path, or open the existing folder explicitly.",
                 ) from None
-            fd = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            fd = fileio.open(
+                path.name, os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW, dir_fd=parent
+            )
             try:
                 configure.write_exclusive(fd, "notes.md", DEMO_TEXT.encode())
-                os.fsync(fd)
+                fileio.fsync(fd)
                 walk.validate()
             finally:
                 os.close(fd)

@@ -13,6 +13,7 @@ import sys
 import time
 from pathlib import Path
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .state import StateStore
 
@@ -32,7 +33,21 @@ INSTALL_HINT = (
 
 def environment() -> dict:
     keep = {"HOME", "PATH", "TMPDIR", "LANG", "LC_CTYPE", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"}
-    env = {k: v for k, v in os.environ.items() if k in keep}
+    if sys.platform == "win32":
+        keep.update(
+            {
+                "SYSTEMROOT",
+                "WINDIR",
+                "USERPROFILE",
+                "APPDATA",
+                "LOCALAPPDATA",
+                "TEMP",
+                "TMP",
+                "COMSPEC",
+            }
+        )
+    env = {k: v for k, v in os.environ.items() if k.upper() in keep}
+    env["PYTHONUTF8"] = "1"
     env.update(HEALTH_LISTEN_ADDR="127.0.0.1:0", MCP_STDIO_SEND_INITIALIZED_NOTIFICATION="true")
     return env
 
@@ -44,6 +59,10 @@ def parse_version(text: str) -> str | None:
 
 def owned_processes(state_dir: Path | None = None) -> dict[int, str]:
     """Server and parser processes of this user, optionally limited to one state directory."""
+    if sys.platform == "win32":
+        from .windows_process import owned_processes as windows_processes
+
+        return windows_processes(state_dir)
     ps = shutil.which("ps") or "/bin/ps"
     listing = subprocess.check_output([ps, "-axo", "pid=,uid=,command="], text=True)
     result = {}
@@ -148,20 +167,22 @@ class NativeRuntime:
     def check_key(self) -> None:
         with self.store.directory() as directory:
             try:
-                key = os.stat("runtime.key", dir_fd=directory, follow_symlinks=False)
+                fd = fileio.open("runtime.key", fileio.FILE_FLAGS, dir_fd=directory)
             except FileNotFoundError:
                 raise KeyholeError(
                     "not_configured",
                     f"runtime.key is missing. Run `{self.store.command('setup', client=self.client)}`.",
                 ) from None
-        require(
-            stat.S_ISREG(key.st_mode)
-            and key.st_uid == os.getuid()
-            and key.st_nlink == 1
-            and stat.S_IMODE(key.st_mode) == 0o600,
-            "runtime_key_permissions",
-            "runtime.key must be a private (0600), owned, single-link regular file.",
-        )
+            try:
+                key = os.fstat(fd)
+                require(
+                    stat.S_ISREG(key.st_mode) and key.st_nlink == 1 and fileio.private(fd, 0o600),
+                    "runtime_key_permissions",
+                    "runtime.key must be an owned private single-link regular file "
+                    "(0600 on POSIX; private ACL on Windows).",
+                )
+            finally:
+                os.close(fd)
 
     def preflight(self) -> dict:
         """Check the configuration, credentials and client version before starting."""
@@ -284,16 +305,21 @@ class NativeRuntime:
     def stop(self) -> dict:
         if self.alias_exists():
             self.invoke("stop", ALIAS)
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            for pid, command in owned_processes(self.store.path).items():
-                if owned_processes(self.store.path).get(pid) == command:
-                    with contextlib.suppress(ProcessLookupError):
-                        os.kill(pid, sig)
-            end = time.monotonic() + 3
-            while owned_processes(self.store.path) and time.monotonic() < end:
-                time.sleep(0.1)
-            if not owned_processes(self.store.path):
-                break
+        if sys.platform == "win32":
+            from .windows_process import terminate_owned
+
+            terminate_owned(self.store.path)
+        else:
+            for sig in (signal.SIGTERM, signal.SIGKILL):
+                for pid, command in owned_processes(self.store.path).items():
+                    if owned_processes(self.store.path).get(pid) == command:
+                        with contextlib.suppress(ProcessLookupError):
+                            os.kill(pid, sig)
+                end = time.monotonic() + 3
+                while owned_processes(self.store.path) and time.monotonic() < end:
+                    time.sleep(0.1)
+                if not owned_processes(self.store.path):
+                    break
         state = self.status()
         require(
             state.get("process_running") is False and not owned_processes(self.store.path),

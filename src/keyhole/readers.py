@@ -1,10 +1,12 @@
 """Bounded in-memory text and isolated document parsing."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import threading
+from contextlib import nullcontext
 from uuid import uuid4
 
 from .errors import KeyholeError, require
@@ -111,6 +113,8 @@ def parse_document(
             command = [
                 sys.executable,
                 "-I",
+                "-X",
+                "utf8",
                 "-m",
                 "keyhole.parsers",
                 "--input-fd",
@@ -130,14 +134,33 @@ def parse_document(
                 "OPENBLAS_NUM_THREADS": "1",
                 "OMP_NUM_THREADS": "1",
             }
-            with subprocess.Popen(
-                command,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                pass_fds=(source.fileno(),),
-                env=env,
-            ) as child:
+            transfer = nullcontext((None, None))
+            options_for_process = {"pass_fds": (source.fileno(),)}
+            if sys.platform == "win32":
+                from .windows_parser import input_handle
+
+                transfer = input_handle(source.fileno())
+                options_for_process = {
+                    "close_fds": True,
+                    "creationflags": subprocess.CREATE_NO_WINDOW,
+                }
+                for key in ("SYSTEMROOT", "WINDIR", "USERPROFILE", "TEMP", "TMP"):
+                    if key in os.environ:
+                        env[key] = os.environ[key]
+            with transfer as (native_input, startup):
+                if native_input is not None:
+                    position = command.index("--input-fd")
+                    command[position : position + 2] = ["--input-handle", str(native_input)]
+                    options_for_process["startupinfo"] = startup
+                child = subprocess.Popen(
+                    command,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    env=env,
+                    **options_for_process,
+                )
+            with child:
                 try:
                     stdout, _ = child.communicate(json.dumps(options).encode(), timeout=timeout)
                 except subprocess.TimeoutExpired as exc:
