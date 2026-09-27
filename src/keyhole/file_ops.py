@@ -136,6 +136,12 @@ def apply_permissions(fd, image):
         os.fchmod(fd, image["mode"] & 0o777)
 
 
+def check_mutable(name, *, directory):
+    if WINDOWS:
+        with win.child(handle(directory), name, write=True) as source:
+            win.mutation_supported(source)
+
+
 def mkdir(path, mode=0o700, *, dir_fd=None):
     if not WINDOWS:
         return os.mkdir(path, mode, dir_fd=dir_fd)

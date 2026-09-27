@@ -39,7 +39,7 @@ def local_path_error(path: Path, exc: OSError) -> KeyholeError:
     """Translate a failed local directory walk into an error the operator can act on."""
     if exc.errno in (errno.ELOOP, errno.ENOTDIR):
         # Linux reports ELOOP for a link under O_NOFOLLOW, macOS reports ENOTDIR; name the link.
-        current = Path("/")
+        current = Path(path.anchor)
         for part in path.parts[1:]:
             current = current / part
             try:

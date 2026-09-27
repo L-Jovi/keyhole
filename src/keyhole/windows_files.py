@@ -209,6 +209,12 @@ class Handle:
             raise OSError("Unexpected file type.")
         if not info.attributes & FILE_ATTRIBUTE_DIRECTORY and info.links != 1:
             raise OSError("Only single-link regular files are allowed.")
+        if info.attributes & FILE_ATTRIBUTE_DIRECTORY:
+            flags = wintypes.DWORD()
+            if not kernel.GetFileInformationByHandleEx(self.value, 23, ctypes.byref(flags), 4):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if flags.value & 1:
+                raise OSError("Case-sensitive NTFS directories are not supported.")
 
     def detach_fd(self, *, writable=False):
         flags = (os.O_RDWR if writable else os.O_RDONLY) | os.O_BINARY
@@ -439,3 +445,27 @@ def remove(handle: Handle):
     check_status(
         ntdll.NtSetInformationFile(handle.value, ctypes.byref(status), ctypes.byref(flags), 4, 64)
     )
+
+
+def mutation_supported(handle: Handle):
+    # Replacing a file cannot silently discard EFS encryption, sparse/compressed
+    # storage or another named data stream, including Mark-of-the-Web metadata.
+    if handle.info().attributes & (0x1 | 0x200 | 0x800 | 0x4000):
+        raise OSError("Read-only, encrypted, compressed and sparse files cannot be edited.")
+    buffer = ctypes.create_string_buffer(65536)
+    if not kernel.GetFileInformationByHandleEx(handle.value, 7, buffer, len(buffer)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    offset = 0
+    while True:
+        next_offset = wintypes.DWORD.from_buffer(buffer, offset).value
+        length = wintypes.DWORD.from_buffer(buffer, offset + 4).value
+        if length % 2 or offset + 24 + length > len(buffer):
+            raise OSError("Invalid stream metadata.")
+        name = buffer.raw[offset + 24 : offset + 24 + length].decode("utf-16-le")
+        if name != "::$DATA":
+            raise OSError("Files with alternate data streams cannot be edited or deleted.")
+        if not next_offset:
+            return
+        if next_offset < 24:
+            raise OSError("Invalid stream offset.")
+        offset += next_offset

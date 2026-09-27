@@ -49,6 +49,14 @@ try {
     Get-Content (Join-Path $work 'integration-stdout.txt')
     Get-Content (Join-Path $work 'integration-stderr.txt')
     if ($integration.ExitCode -ne 0) { throw "Native integration tests failed: $($integration.ExitCode)" }
+    $installerTest = Join-Path $work 'check_client_install.py'
+    Copy-Item (Join-Path $repository 'contrib/ci/check_client_install.py') $installerTest
+    $installer = Start-Process -FilePath $python -ArgumentList "`"$installerTest`"" -Credential $credential `
+        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $work 'installer-stdout.txt') -RedirectStandardError (Join-Path $work 'installer-stderr.txt')
+    Get-Content (Join-Path $work 'installer-stdout.txt')
+    Get-Content (Join-Path $work 'installer-stderr.txt')
+    if ($installer.ExitCode -ne 0) { throw "Official Windows client installation failed: $($installer.ExitCode)" }
 } finally {
     Remove-LocalUser -Name $name
 }

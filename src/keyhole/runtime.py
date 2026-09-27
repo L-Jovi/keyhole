@@ -331,6 +331,8 @@ class NativeRuntime:
 
     def connect(self, generation: str) -> dict:
         info = self.preflight()
+        # The official client parses this field with its POSIX-style parseCommandArgv
+        # on every OS; Windows CreateProcess quoting would corrupt backslashes here.
         command = shlex.join(
             [
                 sys.executable,

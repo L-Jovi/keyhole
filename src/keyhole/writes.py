@@ -38,6 +38,8 @@ SHELL_HOOKS = {
     ".zshenv",
     ".direnv",
     ".envrc",
+    "microsoft.powershell_profile.ps1",
+    "profile.ps1",
 }
 
 
@@ -395,6 +397,16 @@ class Entry:
         finally:
             os.close(fd)
 
+    def check_mutable(self):
+        try:
+            fileio.check_mutable(self.name, directory=self.fd)
+        except OSError as exc:
+            raise KeyholeError(
+                "file_read_only",
+                "Windows file permissions, attributes or alternate streams prevent this mutation. "
+                "Review the original locally; Keyhole does not discard these protections.",
+            ) from exc
+
     def apply(self, before, after, stage_name):
         current = self.snapshot()
         require(
@@ -406,6 +418,7 @@ class Entry:
         if same(current, after):
             return current
         if before["kind"] == "file":
+            self.check_mutable()
             require(
                 before["mode"] & stat.S_IWUSR,
                 "file_read_only",
@@ -838,8 +851,9 @@ class Mutations:
                     record["restores"] = original["change_id"]
                 if resuming:
                     record = old
-                for a, b in zip(before, after, strict=True):
+                for entry, a, b in zip(entries, before, after, strict=True):
                     if a["kind"] == "file" and not same(a, b):
+                        entry.check_mutable()
                         require(
                             a["mode"] & stat.S_IWUSR,
                             "file_read_only",

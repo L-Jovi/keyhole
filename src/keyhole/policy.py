@@ -1,5 +1,7 @@
 """One policy for grants, discovery, search and direct reads."""
 
+import os
+import sys
 import unicodedata
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -84,6 +86,9 @@ EXCLUDED_NAMES = frozenset(
         ".docker",
     }
 )
+if sys.platform == "win32":
+    EXCLUDED_NAMES |= {"appdata", "$recycle.bin", "system volume information", "ntuser.dat"}
+
 EXCLUDED_PATTERNS = (
     ".keyhole-stage-*",
     ".env*",
@@ -157,6 +162,19 @@ def relative_parts(value: str) -> tuple[str, ...]:
         "Use normalized relative paths without dot or parent components.",
     )
     require(len(parts) <= 64, "invalid_path", "Path depth exceeds the limit.")
+    if sys.platform == "win32":
+        from .windows_files import component
+
+        for part in parts:
+            try:
+                component(part)
+            except ValueError:
+                require(
+                    False,
+                    "invalid_path",
+                    "Use normal relative filenames without NTFS streams, device names or short aliases.",
+                )
+
     return parts
 
 
@@ -188,6 +206,15 @@ def check_relative(value: str, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
 
 
 def check_root(path: Path) -> None:
+    if sys.platform == "win32":
+        for name in ("SYSTEMROOT", "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMDATA"):
+            if os.environ.get(name):
+                protected = Path(os.environ[name])
+                require(
+                    path != protected and protected not in path.parents,
+                    "protected_root",
+                    "Windows system and application directories cannot be shared.",
+                )
     require(
         path.is_absolute() and ".." not in path.parts,
         "invalid_root",

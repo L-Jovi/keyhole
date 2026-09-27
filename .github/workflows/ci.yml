@@ -99,4 +99,5 @@ jobs:
             ${{ runner.temp }}/keyhole-windows/report.json
             ${{ runner.temp }}/keyhole-windows/native-*.txt
             ${{ runner.temp }}/keyhole-windows/integration-*.txt
+            ${{ runner.temp }}/keyhole-windows/installer-*.txt
           if-no-files-found: warn
