@@ -91,7 +91,8 @@ needs screenshots/tool receipts proving the three manual ChatGPT observations li
 [PR #10](https://github.com/L-Jovi/keyhole/pull/10) implements a native NTFS backend. It walks paths with
 parent directory handles, refuses reparse points and hard links, holds ancestor handles against rename,
 and uses handle-relative atomic replacement without dropping the checked destination handle. Private
-state uses protected Windows ACLs. Supported edits retain the owner's DACL; raw ACLs and account SIDs
+state uses protected Windows ACLs. In-place edits retain effective DACL access; new files, copy and move
+destinations start private, while recovery keeps the original path's ACL. Raw ACLs and account SIDs
 are omitted from public change receipts. Files with named streams, encryption, compression, sparse or
 read-only attributes are refused for mutation rather than silently losing those properties.
 

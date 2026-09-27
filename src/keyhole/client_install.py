@@ -187,7 +187,7 @@ def install(store: StateStore, release: dict) -> str:
                 result = subprocess.run(
                     [str(candidate), "--version"],
                     capture_output=True,
-                    text=True,
+                    encoding="utf-8",
                     timeout=15,
                 )
                 require(

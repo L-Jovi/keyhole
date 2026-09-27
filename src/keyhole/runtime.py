@@ -128,9 +128,9 @@ class NativeRuntime:
         )
         try:
             output = subprocess.check_output(
-                [self.client, "--version"], text=True, stderr=subprocess.PIPE, timeout=15
+                [self.client, "--version"], encoding="utf-8", stderr=subprocess.PIPE, timeout=15
             )
-        except (OSError, subprocess.SubprocessError) as exc:
+        except (OSError, subprocess.SubprocessError, UnicodeError) as exc:
             raise KeyholeError(
                 "native_client_failed",
                 "The selected tunnel-client could not run --version. "
@@ -237,7 +237,7 @@ class NativeRuntime:
                 [self.client, "runtimes", *args, "--json"],
                 env=environment(),
                 capture_output=True,
-                text=True,
+                encoding="utf-8",
                 timeout=45,
             )
         except subprocess.TimeoutExpired as exc:
@@ -245,6 +245,10 @@ class NativeRuntime:
                 "runtime_timeout",
                 f"`tunnel-client runtimes {args[0]}` exceeded 45 seconds. Inspect with "
                 f"`{inspect}` before retrying.",
+            ) from exc
+        except UnicodeError as exc:
+            raise KeyholeError(
+                "native_runtime_failed", "tunnel-client returned invalid UTF-8 output."
             ) from exc
         except OSError as exc:
             raise KeyholeError("native_client_failed", INSTALL_HINT) from exc

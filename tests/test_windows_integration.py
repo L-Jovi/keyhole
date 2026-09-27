@@ -99,6 +99,25 @@ class WindowsIntegrationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), boot_id())
 
+    def test_official_client_json_uses_utf8_instead_of_the_windows_ansi_codepage(self):
+        payload = {"path": "C:/Synthetic/示例 笔记", "ready": False}
+        encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        actual_run = subprocess.run
+
+        def synthetic_client(_command, **kwargs):
+            return actual_run(
+                [
+                    sys.executable,
+                    "-c",
+                    f"import sys; sys.stdout.buffer.write(bytes.fromhex('{encoded.hex()}'))",
+                ],
+                **kwargs,
+            )
+
+        runtime = NativeRuntime(self.store, client=sys.executable)
+        with patch("keyhole.runtime.subprocess.run", side_effect=synthetic_client):
+            self.assertEqual(runtime.invoke("list"), payload)
+
     def test_config_key_and_history_are_private(self):
         save_runtime(self.state, "tunnel_" + "a" * 32, "sk-fake-test-never-a-real-key", "0.0.14")
         NativeRuntime(self.store).check_key()
