@@ -9,7 +9,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from ctypes import wintypes
 from pathlib import Path
 
@@ -198,7 +198,7 @@ os._exit(31)
         before = original.read_bytes()
         child = subprocess.run([sys.executable, "-c", crash_code, str(original), str(journal)])
         assert child.returncode == 31
-        with sqlite3.connect(journal) as db:
+        with closing(sqlite3.connect(journal)) as db:
             (previous,) = db.execute("SELECT old FROM recovery").fetchone()
         assert previous == before
         replacement.write_bytes(previous)
