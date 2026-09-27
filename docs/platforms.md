@@ -8,8 +8,8 @@ not mean the application works on that platform. Updated 2026-09-27.
 | macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
 | Ubuntu 24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download, Linux Docker fixture and real official Tunnel → ChatGPT read/edit/restore/close passed | Supported; full ChatGPT acceptance used Python 3.12 |
 | Ubuntu 22.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download passed | Supported with automated coverage; the account-based ChatGPT session ran on 24.04 |
-| Windows Server 2025 | Help/version/unsupported response and separate standard-user NTFS feasibility probe passed | Unsupported; the probe is not a shipped filesystem backend |
-| Windows 11 desktop | No completed acceptance | Unsupported |
+| Windows Server 2025 | Native candidate file, ACL, locking, parser, process and installer tests; expanded regression and artifact matrix under review | Not supported by the published 0.4.0 release; native acceptance pending |
+| Windows 11 ARM | Native candidate tested with x64 Python under emulation on a hosted Windows 11 runner | Native acceptance pending; this is not a physical consumer desktop test |
 
 Workflow definitions alone are not results; inspect the [Actions run](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 for the exact commit. Hosted runners already contain development tools. Artifact tests do not establish
@@ -66,19 +66,59 @@ Retain the artifact hash, OS/architecture/Python/client versions, tool receipts 
 Redact ids and paths from public evidence. Only then change the README support row and package classifiers.
 A simulated client or direct SDK call cannot substitute for step 3.
 
-The optional **Manual Linux ChatGPT acceptance** workflow makes a disposable runner available for these
-calls. It is manual, runs only from `main`, and requires a reviewed `linux-acceptance` environment with
-its own `KEYHOLE_ACCEPTANCE_TUNNEL` and `KEYHOLE_ACCEPTANCE_KEY` secrets. Configure those only with the
-maintainer's explicit authorization; never reuse the Mac's key or tunnel.
+The optional **Manual ChatGPT acceptance** workflow makes a disposable runner available for these
+calls. Select `linux` or `windows`; each uses its own reviewed environment (`linux-acceptance` or
+`windows-acceptance`) and dedicated `KEYHOLE_ACCEPTANCE_TUNNEL` / `KEYHOLE_ACCEPTANCE_KEY` secrets.
+Configure those only with the maintainer's explicit authorization; never reuse another machine's key
+or tunnel. Both environments must require maintainer review before releasing their secrets.
+
+Use `main` by default. For an explicitly reviewed candidate, only the repository owner can dispatch a
+non-main branch, and must supply that branch's exact full SHA as `candidate_sha`. The environment
+reviewer must verify the displayed commit and its green CI before approving access to secrets. This
+manual path does not run on pull-request events or release secrets to arbitrary pull requests.
 
 After the wheel and client are installed, the session provides four minutes read-only, four minutes rw,
 then four minutes closed. Watch the live job log for each phase and use the private Linux ChatGPT app with
 workspace `LinuxDemo` and `notes.md`. These timed local CLI changes are authorized by dispatching the
-manual workflow; ChatGPT cannot advance the phases. The job checks retained edit/restore receipts and
+manual workflow; ChatGPT cannot advance the phases. Windows uses a separate `WindowsDemo` workspace and
+normal, non-administrator local user on a hosted Windows 11 ARM machine with x64 Python. The job now
+records the installed candidate wheel's SHA-256. It checks retained edit/restore receipts and
 the restored bytes, and revokes access in cleanup. Only a redacted report is uploaded. A green job still
 needs screenshots/tool receipts proving the three manual ChatGPT observations listed in the report.
 
-## Windows feasibility
+## Windows native candidate
+
+[PR #10](https://github.com/L-Jovi/keyhole/pull/10) implements a native NTFS backend. It walks paths with
+parent directory handles, refuses reparse points and hard links, holds ancestor handles against rename,
+and uses handle-relative atomic replacement without dropping the checked destination handle. Private
+state uses protected Windows ACLs. Supported edits retain the owner's DACL; raw ACLs and account SIDs
+are omitted from public change receipts. Files with named streams, encryption, compression, sparse or
+read-only attributes are refused for mutation rather than silently losing those properties.
+
+[Run 36299717378](https://github.com/L-Jovi/keyhole/actions/runs/36299717378), commit `c417aaf`, passed
+the then-current 22 jobs, including real standard-user native tests and the official Windows client
+download on Windows Server 2025 x64 and hosted Windows 11 ARM (x64 Python under emulation).
+Those tests cover directory escape, ACL privacy, aliases, separate-process locking, edits and restore,
+parser handle transfer, and cleanup limited to one state directory. They use synthetic files and no key.
+
+The expanded Windows matrix runs Python 3.11–3.14 on both runners. It also exercises real MCP SDK
+handshakes, shared behavior regressions, candidate wheel/sdist installation and a fresh PowerShell PATH.
+The broader handshake checks exposed a PowerShell module-discovery stall under the SDK's minimal
+environment; the candidate now limits OS queries to the system module directory and tests that case.
+Inspect the latest PR checks for the current result, not only the earlier successful run above.
+
+**Still required before a support declaration:** a dedicated official Tunnel → ChatGPT session on the
+installed Windows candidate, recording a real read, read-only write refusal, edit, restore and a new read
+refused after close. Retain the candidate wheel hash and distinguish automated results from UI evidence.
+No existing Mac tunnel, key or personal folder should be used for this acceptance.
+
+The [Windows setup guide](windows.md) covers PowerShell, PATH, x64 Python on ARM, ordinary NTFS folders,
+account setup and recovery. Native ARM Python, Windows 10, network shares, case-sensitive NTFS
+directories and cloud placeholders are outside this candidate's tested scope. Process-exit recovery
+does not prove power-loss durability; Windows has no directory-fsync guarantee equivalent to the POSIX
+path used here. No physical Windows consumer machine has been tested.
+
+### Original feasibility probe
 
 `contrib/windows/probe.py` is outside the package. A disposable CI job creates a standard user and tests
 file ids across case aliases, hard-link counts, junction behavior, ACL denial, cross-process locks,
@@ -102,9 +142,8 @@ detection, a cross-process lock and a recovery record surviving process exit. Py
 returned WinError 5 with the destination handle held; both files remained unchanged. Replacement after
 closing the handles succeeded. The report is the run's `windows-feasibility` artifact.
 
-Remaining work includes ACL ownership, special namespaces/alternate streams/short names, parser handle
-passing, boot identity and process-tree cleanup. Process-exit recovery is not power-loss durability proof.
-Windows Server CI is not Windows 11 desktop acceptance. No Windows support is advertised.
+The native candidate above addresses the identified primitive gaps. This original probe remains a
+separate piece of evidence; its success alone is not application support or ChatGPT acceptance.
 
 Primary references: Microsoft [CreateFileW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
 and [GetFileInformationByHandle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileinformationbyhandle).

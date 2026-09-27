@@ -1,18 +1,28 @@
-name: Manual Linux ChatGPT acceptance
+name: Manual ChatGPT acceptance
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Dedicated acceptance environment and hosted OS
+        type: choice
+        options: [linux, windows]
+        default: linux
+      candidate_sha:
+        description: For a reviewed non-main candidate, paste its full commit SHA
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: keyhole-linux-acceptance
+  group: keyhole-${{ inputs.platform }}-acceptance
   cancel-in-progress: false
 
 jobs:
   acceptance:
-    if: github.ref == 'refs/heads/main'
+    if: inputs.platform == 'linux' && (github.ref == 'refs/heads/main' || (github.actor == github.repository_owner && inputs.candidate_sha == github.sha))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: linux-acceptance
@@ -34,10 +44,38 @@ jobs:
         env:
           KEYHOLE_ACCEPTANCE_TUNNEL: ${{ secrets.KEYHOLE_ACCEPTANCE_TUNNEL }}
           KEYHOLE_ACCEPTANCE_KEY: ${{ secrets.KEYHOLE_ACCEPTANCE_KEY }}
-        run: uv run python contrib/ci/linux_acceptance.py --output "$RUNNER_TEMP/linux-acceptance.json"
+        run: uv run python contrib/ci/chatgpt_acceptance.py --wheel dist/keyhole_mcp-*.whl --output "$RUNNER_TEMP/linux-acceptance.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: linux-chatgpt-acceptance
           path: ${{ runner.temp }}/linux-acceptance.json
+          if-no-files-found: warn
+
+  windows:
+    if: inputs.platform == 'windows' && (github.ref == 'refs/heads/main' || (github.actor == github.repository_owner && inputs.candidate_sha == github.sha))
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    environment: windows-acceptance
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - run: uv build
+      - name: Timed synthetic session as a Windows standard user
+        shell: pwsh
+        env:
+          KEYHOLE_ACCEPTANCE_TUNNEL: ${{ secrets.KEYHOLE_ACCEPTANCE_TUNNEL }}
+          KEYHOLE_ACCEPTANCE_KEY: ${{ secrets.KEYHOLE_ACCEPTANCE_KEY }}
+        run: ./contrib/windows/run-acceptance.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-chatgpt-acceptance
+          path: ${{ runner.temp }}/keyhole-windows-acceptance/report.json
           if-no-files-found: warn

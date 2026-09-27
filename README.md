@@ -71,7 +71,7 @@ stays under your local control.
 | macOS | Apple silicon, macOS 15.6 and 15.7.7. Intel and older macOS remain untested. |
 | Python | 3.11–3.14 in CI; `uv` supplies Python automatically. |
 | Linux | Supported on Ubuntu x86_64. Real ChatGPT read/edit/restore/close verified on Ubuntu 24.04; Ubuntu 22.04/24.04 have Python 3.11–3.14 CI and artifact coverage. Other distributions and Linux ARM are untested. [Evidence and limits](https://github.com/L-Jovi/keyhole/blob/main/docs/platforms.md). |
-| Windows | Unsupported. CI checks the refusal message and separate NTFS feasibility probes; neither establishes Windows support. |
+| Windows | The published 0.4.0 release is unsupported. A native NTFS backend is under review; see the [candidate Windows guide](docs/windows.md) and [acceptance status](docs/platforms.md#windows-native-candidate). Automated checks alone do not establish ChatGPT support. |
 | OpenAI client | `tunnel-client` 0.0.14. Newer versions require explicit acceptance at setup. |
 | ChatGPT | Pro, web, Chat mode. Other eligible plans and fresh-account onboarding have not been tested here. |
 | Clean install | Release wheel tested with Git/Python developer-tool commands unavailable in a simulated environment; not a freshly erased Mac. |

@@ -111,3 +111,33 @@ jobs:
             ${{ runner.temp }}/keyhole-windows/artifacts-*.txt
             ${{ runner.temp }}/keyhole-windows/startup-*.txt
           if-no-files-found: warn
+
+  windows-installer:
+    name: Windows standard-user wheel / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - run: uv build
+      - name: Exercise the acceptance installer without credentials or a tunnel
+        shell: pwsh
+        env:
+          KEYHOLE_ACCEPTANCE_INSTALL_ONLY: "true"
+          KEYHOLE_ACCEPTANCE_KEY: sk-synthetic-not-a-real-credential
+          KEYHOLE_ACCEPTANCE_TUNNEL: tunnel_0123456789abcdef0123456789abcdef
+        run: ./contrib/windows/run-acceptance.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-standard-user-wheel-${{ matrix.os }}
+          path: ${{ runner.temp }}/keyhole-windows-acceptance/report.json
+          if-no-files-found: warn
