@@ -8,8 +8,8 @@ not mean the application works on that platform. Updated 2026-09-27.
 | macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
 | Ubuntu 24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download, Linux Docker fixture and real official Tunnel → ChatGPT read/edit/restore/close passed | Supported; full ChatGPT acceptance used Python 3.12 |
 | Ubuntu 22.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download passed | Supported with automated coverage; the account-based ChatGPT session ran on 24.04 |
-| Windows Server 2025 | Native filesystem, ACL, locking, parser, process, MCP handshake and artifact checks across x64 Python 3.11–3.14 passed | Automated candidate coverage; not included in the published 0.4.0 release |
-| Windows 11 ARM | The same x64 Python matrix under emulation, plus a real official Tunnel → ChatGPT read, read-only refusal, edit, restore and closed-read refusal as a standard user | Candidate acceptance passed on a hosted Windows 11 machine; no physical consumer desktop was tested |
+| Windows Server 2025 | Native filesystem, ACL, locking, parser, process, MCP handshake and artifact checks across x64 Python 3.11–3.14 passed | Supported from 0.5.0 with automated coverage |
+| Windows 11 ARM | The same x64 Python matrix under emulation, plus a real official Tunnel → ChatGPT read, read-only refusal, edit, restore and closed-read refusal as a standard user | Supported from 0.5.0 with x64 Python; ChatGPT acceptance ran on a hosted Windows 11 machine, not a physical consumer desktop |
 
 Workflow definitions alone are not results; inspect the [Actions run](https://github.com/L-Jovi/keyhole/actions/workflows/ci.yml)
 for the exact commit. Hosted runners already contain development tools. Artifact tests do not establish
@@ -91,9 +91,9 @@ Retaining a test tunnel or app does not require keeping a runner connected. Use 
 restricted runtime key for a later session when the previous key has expired, and update that platform's
 environment secret. Do not extend a credential's lifetime merely to preserve the reusable test setup.
 
-## Windows native candidate
+## Windows native support
 
-[PR #10](https://github.com/L-Jovi/keyhole/pull/10) implements a native NTFS backend. It walks paths with
+Native Windows support ships in 0.5.0. [PR #10](https://github.com/L-Jovi/keyhole/pull/10) implements a native NTFS backend. It walks paths with
 parent directory handles, refuses reparse points and hard links, holds ancestor handles against rename,
 and uses handle-relative atomic replacement without dropping the checked destination handle. Private
 state uses protected Windows ACLs. In-place edits retain effective DACL access; new files, copy and move
@@ -140,13 +140,14 @@ Its `windows-chatgpt-acceptance` report keeps `fixture_only: true` and `full_cha
 the runner cannot observe ChatGPT. The manual transcript and screenshots were verified separately and
 retained by the maintainer; the raw report was not rewritten.
 
-**Release boundary:** this verifies the installed candidate identified above. Windows support is not
-part of the published 0.4.0 package. A later rebuilt release has different bytes and must pass its own
-artifact checks; it must not inherit this wheel hash.
+**Release boundary:** this verifies the installed candidate identified above. 0.5.0 contains that backend
+plus a later change that starts the MCP server with `python -I -X utf8` from the state directory; the
+ChatGPT session above predates that change. The 0.5.0 artifacts have different bytes and do not inherit
+this wheel hash: CI handshakes and the release workflow's Windows installation check cover them.
 
 The [Windows setup guide](windows.md) covers PowerShell, PATH, x64 Python on ARM, ordinary NTFS folders,
 account setup and recovery. Native ARM Python, Windows 10, network shares, case-sensitive NTFS
-directories and cloud placeholders are outside this candidate's tested scope. Process-exit recovery
+directories and cloud placeholders are outside the tested scope. Process-exit recovery
 does not prove power-loss durability; Windows has no directory-fsync guarantee equivalent to the POSIX
 path used here. No physical Windows consumer machine has been tested.
 
@@ -174,7 +175,7 @@ detection, a cross-process lock and a recovery record surviving process exit. Py
 returned WinError 5 with the destination handle held; both files remained unchanged. Replacement after
 closing the handles succeeded. The report is the run's `windows-feasibility` artifact.
 
-The native candidate above addresses the identified primitive gaps. This original probe remains a
+The native backend above addresses the identified primitive gaps. This original probe remains a
 separate piece of evidence; its success alone is not application support or ChatGPT acceptance.
 
 Primary references: Microsoft [CreateFileW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)

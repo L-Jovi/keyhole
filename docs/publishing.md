@@ -34,7 +34,8 @@ and [publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/) in
 3. With release authorization, create the version tag and a GitHub release with reviewed notes.
    Dispatch **Publish reviewed release** from `main` with that existing tag (for example `v0.4.0`).
 4. The workflow checks main ancestry/version, builds once, tests those artifacts outside the checkout
-   on macOS and both Ubuntu versions, then waits for the `pypi` environment approval before uploading.
+   on macOS and both Ubuntu versions, installs the wheel on Windows Server 2025 and Windows 11 ARM with
+   the command from the Windows guide, then waits for the `pypi` environment approval before uploading.
 5. After PyPI succeeds, approve the `release` job to attach the **same bytes** and SHA-256 sums to GitHub.
    It will not overwrite assets. If interrupted after PyPI publication, upload the preserved successful
    run's artifacts to GitHub; do not rebuild or republish a version with different bytes.
