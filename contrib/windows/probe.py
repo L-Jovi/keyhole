@@ -149,6 +149,7 @@ with open(sys.argv[1], 'r+b') as f:
 
         replacement = root / "replacement"
         replacement.write_bytes(b"replacement\n")
+        before_replace = original.read_bytes()
         with handle(original, share=3):
             try:
                 os.replace(replacement, original)
@@ -156,13 +157,32 @@ with open(sys.argv[1], 'r+b') as f:
                 report["replace_requires_delete_sharing"] = True
             else:
                 raise AssertionError("Replacement unexpectedly ignored a held handle's share mode.")
+            assert original.read_bytes() == before_replace
+            assert replacement.read_bytes() == b"replacement\n"
         with handle(original) as held:
             old_id = info(held)["identity"]
-            os.replace(replacement, original)
-            with handle(original) as current:
-                assert info(current)["identity"] != old_id
+            try:
+                os.replace(replacement, original)
+            except PermissionError as exc:
+                # CPython's MoveFileEx path need not provide POSIX replacement of an open target,
+                # even with FILE_SHARE_DELETE. Record the gap; never call it platform support.
+                assert exc.winerror in (5, 32)
+                assert original.read_bytes() == before_replace
+                assert replacement.read_bytes() == b"replacement\n"
+                report["replace_with_delete_sharing"] = {
+                    "supported": False,
+                    "winerror": exc.winerror,
+                    "both_files_unchanged": True,
+                }
+            else:
+                with handle(original) as current:
+                    assert info(current)["identity"] != old_id
+                report["replace_with_delete_sharing"] = {"supported": True}
             assert info(held)["identity"] == old_id
-        report["replace_with_delete_sharing"] = True
+        if replacement.exists():
+            os.replace(replacement, original)
+        assert original.read_bytes() == b"replacement\n"
+        report["replace_after_handles_closed"] = True
 
         journal = root / "journal.sqlite3"
         crash_code = """import os, sqlite3, sys
@@ -188,6 +208,7 @@ os._exit(31)
 
     report["remaining"] = [
         "Race-resistant handle-relative traversal and writes at every path component",
+        "Native atomic replacement while retaining the handles used for identity validation",
         "Windows ACL policy for keys, grants, history and managed clients",
         "Reparse tags, alternate streams, device paths, short names and Unicode alias tests",
         "Parser handle inheritance, process-tree cleanup and boot identity backend",

@@ -55,6 +55,12 @@ whole path safe when an earlier component is a junction. A Windows backend needs
 and identity validation for every component, including writes. Catching the `fcntl` import or replacing
 one flag would weaken the existing boundary.
 
+The first real standard-user run also rejected Python's `os.replace` while the destination handle was
+open, even with `FILE_SHARE_DELETE`. The probe records this outcome and verifies that both files remain
+unchanged before testing replacement after handle closure. A passing feasibility job may therefore
+contain `supported: false` for this primitive. Closing identity-check handles to make a test pass is not
+a proposed Keyhole fix; a native backend must preserve the race protection during replacement.
+
 Remaining work includes ACL ownership, special namespaces/alternate streams/short names, parser handle
 passing, boot identity and process-tree cleanup. Process-exit recovery is not power-loss durability proof.
 Windows Server CI is not Windows 11 desktop acceptance. No Windows support is advertised.
