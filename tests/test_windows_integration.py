@@ -23,7 +23,7 @@ if sys.platform == "win32":
     from keyhole.filesystem import SafeFS
     from keyhole.management import Manager
     from keyhole.readers import parse_document
-    from keyhole.runtime import NativeRuntime
+    from keyhole.runtime import NativeRuntime, server_command
     from keyhole.state import StateStore, boot_id
 
 
@@ -258,24 +258,8 @@ class WindowsIntegrationTests(unittest.TestCase):
         other_manager = Manager(second, OfflineRuntime())
         other_manager.open(self.shared, name="Other")
         commands = [
-            [
-                sys.executable,
-                "-m",
-                "keyhole.server",
-                "--state-dir",
-                str(self.state),
-                "--generation",
-                generation,
-            ],
-            [
-                sys.executable,
-                "-m",
-                "keyhole.server",
-                "--state-dir",
-                str(other),
-                "--generation",
-                second.read()["generation"],
-            ],
+            server_command(self.state, generation),
+            server_command(other, second.read()["generation"]),
         ]
         processes = [
             subprocess.Popen(

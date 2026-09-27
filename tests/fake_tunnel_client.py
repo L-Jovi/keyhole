@@ -6,6 +6,7 @@ Control files (all optional, all under $TMPDIR):
   fake-tunnel-fail      if present, `runtimes connect` exits 1 with a message
   fake-tunnel-registry.json  alias registry maintained by this script
   fake-tunnel-log.jsonl      every invocation's argv, one JSON list per line
+  fake-tunnel-cwd.jsonl      every invocation's subcommand and working directory
 """
 
 import json
@@ -45,6 +46,8 @@ def main() -> int:
     argv = sys.argv[1:]
     with (TMP / "fake-tunnel-log.jsonl").open("a") as log:
         log.write(json.dumps(argv) + "\n")
+    with (TMP / "fake-tunnel-cwd.jsonl").open("a") as log:
+        log.write(json.dumps({"command": argv[:2], "cwd": os.getcwd()}) + "\n")
     if argv == ["--version"]:
         version_file = TMP / "fake-tunnel-version"
         print(version_file.read_text().strip() if version_file.exists() else "0.0.14+fake")

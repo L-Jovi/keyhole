@@ -26,6 +26,13 @@ The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh
 - Replace the edited video, jump-numbered GIF and single-step preview with an ordered screenshot
   example connecting local commands, real ChatGPT responses and verified on-disk file changes.
 
+### Security
+
+- Start the MCP server with `python -I -X utf8`, and start the official runtime from the private state
+  directory. The runtime launches the server without choosing a working directory, so a server started
+  after `keyhole` ran inside an rw folder could import a remote-created module such as `json.py` from
+  that folder instead of the standard library. Affects all platforms; the parser already ran isolated.
+
 ## [0.4.0] - 2026-09-27
 
 The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
