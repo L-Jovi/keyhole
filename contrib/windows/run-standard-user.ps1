@@ -50,6 +50,14 @@ try {
     Get-Content (Join-Path $work 'integration-stderr.txt')
     if ($integration.ExitCode -ne 0) { throw "Native integration tests failed: $($integration.ExitCode)" }
     Copy-Item (Join-Path $repository 'tests') (Join-Path $work 'tests') -Recurse
+    $startupTest = Join-Path $work 'diagnose_startup.py'
+    Copy-Item (Join-Path $PSScriptRoot 'diagnose_startup.py') $startupTest
+    $startup = Start-Process -FilePath $python -ArgumentList "`"$startupTest`"" -Credential $credential `
+        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $work 'startup-stdout.txt') -RedirectStandardError (Join-Path $work 'startup-stderr.txt')
+    Get-Content (Join-Path $work 'startup-stdout.txt')
+    Get-Content (Join-Path $work 'startup-stderr.txt')
+    if ($startup.ExitCode -ne 0) { throw "Startup diagnostic failed: $($startup.ExitCode)" }
     $commonTest = Join-Path $work 'common_regression.py'
     Copy-Item (Join-Path $PSScriptRoot 'common_regression.py') $commonTest
     $common = Start-Process -FilePath $python -ArgumentList "-X utf8 `"$commonTest`"" -Credential $credential `
