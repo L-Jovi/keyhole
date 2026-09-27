@@ -10,6 +10,7 @@ import stat as stat_module
 import sys
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 WINDOWS = sys.platform == "win32"
 O_DIRECTORY = getattr(os, "O_DIRECTORY", 1 << 24)
@@ -75,7 +76,23 @@ def _open(parent, name, flags, mode):
 
 
 def fstat(fd):
-    return os.fstat(fd)
+    st = os.fstat(fd)
+    if not WINDOWS:
+        return st
+    native = handle(fd)
+    info, basic = native.info(), native.basic()
+    epoch = 116444736000000000
+    # Python <=3.12 calls the birth time st_ctime on Windows. The real NTFS
+    # change time also catches ACL and stream changes during version checks.
+    return SimpleNamespace(
+        st_dev=info.volume,
+        st_ino=(info.index_high << 32) | info.index_low,
+        st_mode=st.st_mode,
+        st_nlink=info.links,
+        st_size=(info.size_high << 32) | info.size_low,
+        st_mtime_ns=(basic.written - epoch) * 100,
+        st_ctime_ns=(basic.changed - epoch) * 100,
+    )
 
 
 def stat(path, *, dir_fd=None, follow_symlinks=False):
@@ -132,6 +149,7 @@ def apply_permissions(fd, image):
     if WINDOWS:
         descriptor = security.descriptor_from_sddl(image["windows_acl"])
         security.restore_dacl(handle(fd).value, descriptor)
+        win.readonly(handle(fd), not image["mode"] & stat_module.S_IWUSR)
     else:
         os.fchmod(fd, image["mode"] & 0o777)
 

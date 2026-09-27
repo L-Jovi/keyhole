@@ -22,6 +22,12 @@ DEFAULT_STATE = Path.home() / ".config/keyhole"
 SETUP_HINT = "Run `keyhole setup` first to store the tunnel id and runtime key."
 
 
+def command_hint(parts) -> str:
+    if sys.platform == "win32":
+        return "& " + " ".join("'" + str(part).replace("'", "''") + "'" for part in parts)
+    return shlex.join(parts)
+
+
 def now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -144,11 +150,7 @@ class StateStore:
             parts.extend(["--state-dir", str(self.path)])
         if client:
             parts.extend(["--tunnel-client", client])
-        return (
-            subprocess.list2cmdline([*parts, *args])
-            if sys.platform == "win32"
-            else shlex.join([*parts, *args])
-        )
+        return command_hint([*parts, *args])
 
     @contextmanager
     def directory(self):
@@ -187,7 +189,7 @@ class StateStore:
                     raise KeyholeError("not_configured", SETUP_HINT) from None
                 raise KeyholeError("offline", "No directory authorization is active.") from None
             with os.fdopen(fd, encoding="utf-8") as source:
-                st = os.fstat(source.fileno())
+                st = fileio.fstat(source.fileno())
                 require(
                     stat.S_ISREG(st.st_mode)
                     and fileio.private(source.fileno(), 0o600)
@@ -238,7 +240,7 @@ class StateStore:
                 dir_fd=directory,
             )
             try:
-                st = os.fstat(fd)
+                st = fileio.fstat(fd)
                 require(
                     stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and fileio.private(fd, 0o600),
                     "state_permissions",

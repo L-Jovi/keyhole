@@ -74,17 +74,19 @@ jobs:
         run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
 
   windows-feasibility:
-    name: Windows NTFS primitives / ${{ matrix.os }} (not platform support)
+    name: Windows native / ${{ matrix.os }} / Python ${{ matrix.python }} (acceptance pending)
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2025, windows-11-arm]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 25
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           architecture: x64
       - name: Install candidate dependencies
         run: python -m pip install .
@@ -94,10 +96,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: windows-feasibility-${{ matrix.os }}
+          name: windows-native-${{ matrix.os }}-${{ matrix.python }}
           path: |
             ${{ runner.temp }}/keyhole-windows/report.json
             ${{ runner.temp }}/keyhole-windows/native-*.txt
             ${{ runner.temp }}/keyhole-windows/integration-*.txt
             ${{ runner.temp }}/keyhole-windows/installer-*.txt
+            ${{ runner.temp }}/keyhole-windows/common-*.txt
           if-no-files-found: warn

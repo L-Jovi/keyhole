@@ -49,6 +49,15 @@ try {
     Get-Content (Join-Path $work 'integration-stdout.txt')
     Get-Content (Join-Path $work 'integration-stderr.txt')
     if ($integration.ExitCode -ne 0) { throw "Native integration tests failed: $($integration.ExitCode)" }
+    Copy-Item (Join-Path $repository 'tests') (Join-Path $work 'tests') -Recurse
+    $commonTest = Join-Path $work 'common_regression.py'
+    Copy-Item (Join-Path $PSScriptRoot 'common_regression.py') $commonTest
+    $common = Start-Process -FilePath $python -ArgumentList "-X utf8 `"$commonTest`"" -Credential $credential `
+        -WorkingDirectory $work -LoadUserProfile -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $work 'common-stdout.txt') -RedirectStandardError (Join-Path $work 'common-stderr.txt')
+    Get-Content (Join-Path $work 'common-stdout.txt')
+    Get-Content (Join-Path $work 'common-stderr.txt')
+    if ($common.ExitCode -ne 0) { throw "Shared behavior regression failed: $($common.ExitCode)" }
     $installerTest = Join-Path $work 'check_client_install.py'
     Copy-Item (Join-Path $repository 'contrib/ci/check_client_install.py') $installerTest
     $installer = Start-Process -FilePath $python -ArgumentList "`"$installerTest`"" -Credential $credential `

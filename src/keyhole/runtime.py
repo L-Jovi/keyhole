@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import file_ops as fileio
 from .errors import KeyholeError, require
-from .state import StateStore
+from .state import StateStore, command_hint
 
 ALIAS = "keyhole"
 PROFILE = "keyhole"
@@ -27,7 +27,7 @@ SERVER_MODULE = "keyhole.server"
 PARSER_MODULE = "keyhole.parsers"
 INSTALL_HINT = (
     "Run `keyhole setup` to install the official tunnel-client, or pass "
-    "--tunnel-client /absolute/path/to/tunnel-client. A missing saved path is never replaced by PATH."
+    "--tunnel-client PATH to an absolute executable path. A missing saved path is never replaced by PATH."
 )
 
 
@@ -174,7 +174,7 @@ class NativeRuntime:
                     f"runtime.key is missing. Run `{self.store.command('setup', client=self.client)}`.",
                 ) from None
             try:
-                key = os.fstat(fd)
+                key = fileio.fstat(fd)
                 require(
                     stat.S_ISREG(key.st_mode) and key.st_nlink == 1 and fileio.private(fd, 0o600),
                     "runtime_key_permissions",
@@ -231,7 +231,7 @@ class NativeRuntime:
 
     def invoke(self, *args: str) -> dict:
         require(bool(self.client), "native_client_missing", INSTALL_HINT)
-        inspect = shlex.join([self.client, "runtimes", "status", ALIAS])
+        inspect = command_hint([self.client, "runtimes", "status", ALIAS])
         try:
             result = subprocess.run(
                 [self.client, "runtimes", *args, "--json"],
@@ -370,6 +370,6 @@ class NativeRuntime:
         raise KeyholeError(
             "runtime_not_ready",
             "The tunnel runtime did not become ready. Grants are disabled; inspect "
-            f"`{shlex.join([self.client, 'runtimes', 'status', ALIAS])}`, then "
+            f"`{command_hint([self.client, 'runtimes', 'status', ALIAS])}`, then "
             f"`{self.store.command('resume', client=self.client)}` with the intended workspace name.",
         )

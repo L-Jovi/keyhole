@@ -1,9 +1,9 @@
 """Local-only authorization changes and fail-closed native restarts."""
 
-import os
 from pathlib import Path
 from uuid import uuid4
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .filesystem import SafeFS, absolute_directory, canonical_path, identity
 from .policy import check_root, normalize_pattern, policy_summary
@@ -60,9 +60,10 @@ class Manager:
         ):
             # Kernel identities also cover case, Unicode and volume-path aliases.
             require(
-                identity(os.fstat(root_fd)) not in {identity(os.fstat(fd)) for fd in state_walk.fds}
-                and identity(os.fstat(state_fd))
-                not in {identity(os.fstat(fd)) for fd in root_walk.fds},
+                identity(fileio.fstat(root_fd))
+                not in {identity(fileio.fstat(fd)) for fd in state_walk.fds}
+                and identity(fileio.fstat(state_fd))
+                not in {identity(fileio.fstat(fd)) for fd in root_walk.fds},
                 "protected_root",
                 "The private state directory cannot be shared or contain a shared directory.",
             )
@@ -80,7 +81,7 @@ class Manager:
                 f"{path} is now spelled {actual} by the system. Run `keyhole forget` and open it again.",
             )
             require(
-                identity(os.fstat(fd)) == (grant["device"], grant["inode"]),
+                identity(fileio.fstat(fd)) == (grant["device"], grant["inode"]),
                 "root_changed",
                 "The configured root was replaced. Close and forget the old grant before "
                 "explicitly authorizing the replacement.",
@@ -105,7 +106,7 @@ class Manager:
         with self.store.lock():
             state = self.current()
             with absolute_directory(path) as (fd, walk):
-                st = os.fstat(fd)
+                st = fileio.fstat(fd)
                 root = canonical_path(fd) or path
             check_root(root)
             self.check_not_state(root)

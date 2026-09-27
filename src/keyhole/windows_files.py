@@ -85,6 +85,16 @@ class FileInformation(ctypes.Structure):
     ]
 
 
+class BasicInformation(ctypes.Structure):
+    _fields_ = [
+        ("created", ctypes.c_longlong),
+        ("accessed", ctypes.c_longlong),
+        ("written", ctypes.c_longlong),
+        ("changed", ctypes.c_longlong),
+        ("attributes", wintypes.DWORD),
+    ]
+
+
 class RenameInformation(ctypes.Structure):
     _fields_ = [
         ("Flags", wintypes.DWORD),
@@ -200,6 +210,14 @@ class Handle:
     def identity(self):
         info = self.info()
         return info.volume, (info.index_high << 32) | info.index_low
+
+    def basic(self):
+        result = BasicInformation()
+        if not kernel.GetFileInformationByHandleEx(
+            self.value, 0, ctypes.byref(result), ctypes.sizeof(result)
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return result
 
     def validate(self, *, directory):
         info = self.info()
@@ -393,6 +411,23 @@ kernel.GetFinalPathNameByHandleW.argtypes = [
     wintypes.DWORD,
 ]
 kernel.GetFinalPathNameByHandleW.restype = wintypes.DWORD
+kernel.SetFileInformationByHandle.argtypes = [
+    wintypes.HANDLE,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    wintypes.DWORD,
+]
+kernel.SetFileInformationByHandle.restype = wintypes.BOOL
+
+
+def readonly(handle, value):
+    info = BasicInformation()
+    attributes = handle.info().attributes
+    info.attributes = (attributes | 1) if value else (attributes & ~1) or 0x80
+    if not kernel.SetFileInformationByHandle(
+        handle.value, 0, ctypes.byref(info), ctypes.sizeof(info)
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
 
 
 def names(directory: Handle):

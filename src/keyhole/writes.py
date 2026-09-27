@@ -136,7 +136,7 @@ class Journal:
                 "changes.sqlite3", os.O_RDWR | os.O_CREAT | fileio.O_NOFOLLOW, 0o600, dir_fd=fd
             )
             try:
-                st = os.fstat(dbfd)
+                st = fileio.fstat(dbfd)
                 require(
                     stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and fileio.private(dbfd, 0o600),
                     "history_unsafe",
@@ -358,7 +358,7 @@ class Entry:
             self.name, os.O_RDONLY | fileio.O_NOFOLLOW | fileio.O_NONBLOCK, dir_fd=self.fd
         )
         try:
-            initial = os.fstat(fd)
+            initial = fileio.fstat(fd)
             require(
                 fileio.owned(fd),
                 "unsafe_file",
@@ -379,7 +379,7 @@ class Entry:
                 size += len(chunk)
                 require(size <= TEXT_LIMIT, "file_too_large", "Mutation snapshot exceeds 8 MiB.")
             require(
-                version(os.fstat(fd)) == version(initial),
+                version(fileio.fstat(fd)) == version(initial),
                 "content_changed",
                 "File changed during snapshot.",
             )
@@ -544,7 +544,7 @@ def check_write_walk(bridge, walk) -> None:
     protected = protected_identities(bridge.store)
     for fd in walk.fds:
         require(
-            identity(os.fstat(fd)) not in protected,
+            identity(fileio.fstat(fd)) not in protected,
             "protected_control_path",
             "Keyhole code, environment and runtime configuration cannot be modified remotely.",
         )

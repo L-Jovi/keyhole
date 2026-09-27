@@ -98,7 +98,8 @@ class Walk:
         for parent, name, fd in self.edges:
             current = fileio.stat(name, dir_fd=parent, follow_symlinks=False)
             require(
-                not stat.S_ISLNK(current.st_mode) and identity(current) == identity(os.fstat(fd)),
+                not stat.S_ISLNK(current.st_mode)
+                and identity(current) == identity(fileio.fstat(fd)),
                 "path_changed",
                 "The directory or file was replaced during access; retry after local review.",
             )
@@ -137,14 +138,14 @@ class SafeFS:
         try:
             root = walk.absolute(Path(self.grant["path"]))
             require(
-                identity(os.fstat(root)) == (self.grant["device"], self.grant["inode"]),
+                identity(fileio.fstat(root)) == (self.grant["device"], self.grant["inode"]),
                 "root_changed",
                 "The approved root was replaced or is unavailable; local reauthorization is required.",
             )
             fd = root
             for i, part in enumerate(parts):
                 fd = walk.child(part, directory=directory or i < len(parts) - 1)
-            st = os.fstat(fd)
+            st = fileio.fstat(fd)
             if not directory:
                 require(
                     stat.S_ISREG(st.st_mode) and st.st_nlink == 1,
@@ -185,7 +186,7 @@ class SafeFS:
                 chunks.append(chunk)
                 total += len(chunk)
                 require(total <= limit, "file_too_large", "Source grew beyond the reading limit.")
-            after = os.fstat(fd)
+            after = fileio.fstat(fd)
             require(
                 version(before) == version(after) and after.st_nlink == 1,
                 "content_changed",
@@ -231,7 +232,7 @@ class SafeFS:
                         }
                     )
             require(
-                version(before) == version(os.fstat(fd)),
+                version(before) == version(fileio.fstat(fd)),
                 "content_changed",
                 "The directory changed during enumeration; retry.",
             )

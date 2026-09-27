@@ -169,7 +169,7 @@ def install(store: StateStore, release: dict) -> str:
         try:
             with store.lock(), absolute_directory(target.parent) as (checked, walk):
                 require(
-                    os.path.samestat(os.fstat(parent), os.fstat(checked)),
+                    os.path.samestat(fileio.fstat(parent), fileio.fstat(checked)),
                     "path_changed",
                     "The client installation directory changed; retry setup.",
                 )
@@ -229,8 +229,8 @@ def install(store: StateStore, release: dict) -> str:
                                     os.fdopen(expected, "rb") as new,
                                 ):
                                     old_stat, new_stat = (
-                                        os.fstat(old.fileno()),
-                                        os.fstat(new.fileno()),
+                                        fileio.fstat(old.fileno()),
+                                        fileio.fstat(new.fileno()),
                                     )
                                     require(
                                         stat.S_ISREG(old_stat.st_mode)
