@@ -6,7 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from keyhole.client_install import asset, install
+from keyhole.client_install import asset, finish_staging_operation, install
 from keyhole.state import StateStore
 
 
@@ -24,7 +24,10 @@ def main():
             "Official bundle downloaded, verified and executed; no runtime or tunnel was started."
         )
     finally:
-        shutil.rmtree(root)
+        # The real --version process has exited, but Windows may briefly retain
+        # its executable image. Cleanup must still complete, not ignore errors.
+        finish_staging_operation(lambda: shutil.rmtree(root))
+        assert not root.exists()
 
 
 if __name__ == "__main__":

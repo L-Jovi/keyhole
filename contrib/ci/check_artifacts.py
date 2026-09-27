@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -18,6 +20,31 @@ def run(*args, cwd, env=None):
         if k not in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME")
     }
     subprocess.run(args, cwd=cwd, env=clean, check=True)
+
+
+@contextmanager
+def temporary_workspace(windows):
+    directory = tempfile.TemporaryDirectory(
+        prefix="keyhole-artifacts-", dir=Path.cwd() if windows else None
+    )
+    try:
+        yield Path(directory.name).resolve()
+    finally:
+        for attempt in range(31):
+            try:
+                directory.cleanup()
+                break
+            except OSError as exc:
+                if (
+                    not windows
+                    or getattr(exc, "winerror", None) not in (5, 32, 33)
+                    or attempt == 30
+                ):
+                    raise
+                # Real Windows executables can retain an image mapping briefly
+                # after exit. Never turn a failed fixture cleanup into success.
+                time.sleep(0.1)
+        assert not Path(directory.name).exists()
 
 
 def main():
@@ -41,10 +68,7 @@ def main():
         else:
             run(str(python), "-m", "pytest", "-q", "--tb=short", cwd=check)
 
-    with tempfile.TemporaryDirectory(
-        prefix="keyhole-artifacts-", dir=Path.cwd() if windows else None
-    ) as scratch:
-        work = Path(scratch).resolve()
+    with temporary_workspace(windows) as work:
         venv = work / "wheel-env"
         run(uv, "venv", "--python", sys.executable, str(venv), cwd=work)
         python = venv / scripts / python_name
