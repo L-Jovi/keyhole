@@ -112,6 +112,7 @@ class WindowsIntegrationTests(unittest.TestCase):
 
     def test_edit_restore_close_and_acl_preservation(self):
         from keyhole import writes
+        from keyhole.windows_security import user_sid
 
         compare = writes.same
 
@@ -124,6 +125,8 @@ class WindowsIntegrationTests(unittest.TestCase):
                             "actual": writes.public_image(a),
                             "expected": writes.public_image(b),
                             "acl_equal": a.get("windows_acl") == b.get("windows_acl"),
+                            "actual_acl": a["windows_acl"].replace(user_sid(), "OWNER"),
+                            "expected_acl": b["windows_acl"].replace(user_sid(), "OWNER"),
                         }
                     )
                 )
