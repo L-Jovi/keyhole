@@ -67,16 +67,27 @@ class FakeRuntime:
 class FixtureCase(unittest.TestCase):
     def setUp(self):
         # Resolve the temp dir: the walk refuses symlinked components such as macOS /tmp.
-        self.base = Path(tempfile.mkdtemp(prefix="keyhole-test-")).resolve()
+        self.base = Path(
+            tempfile.mkdtemp(
+                prefix="keyhole-test-", dir=Path.cwd() if sys.platform == "win32" else None
+            )
+        ).resolve()
         self.addCleanup(shutil.rmtree, self.base, ignore_errors=True)
         self.state = self.base / "private-state"
-        self.state.mkdir(mode=0o700)
+        if sys.platform == "win32":
+            from keyhole.configure import open_private_directory
+
+            os.close(open_private_directory(self.state))
+        else:
+            self.state.mkdir(mode=0o700)
         self.a = self.base / "Alpha"
         self.b = self.base / "Beta"
         self.a.mkdir()
         self.b.mkdir()
-        (self.a / "proof.md").write_text(UNICODE_LINE + "\nline two\n")
-        (self.b / "other.txt").write_text("independent evidence\n")
+        (self.a / "proof.md").write_text(
+            UNICODE_LINE + "\nline two\n", encoding="utf-8", newline="\n"
+        )
+        (self.b / "other.txt").write_bytes(b"independent evidence\n")
         self.store = StateStore(self.state)
         self.runtime = FakeRuntime()
         self.manager = Manager(self.store, self.runtime)

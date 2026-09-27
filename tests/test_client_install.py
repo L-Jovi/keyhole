@@ -2,8 +2,10 @@
 
 import hashlib
 import io
+import os
 import shutil
 import stat
+import sys
 import tempfile
 import unittest
 import urllib.error
@@ -14,6 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from keyhole import client_install
+from keyhole import file_ops as fileio
 from keyhole.errors import KeyholeError
 from keyhole.state import StateStore
 
@@ -25,13 +28,17 @@ class ClientInstallTests(unittest.TestCase):
         self.store = StateStore(self.root / "Private 状态")
         self.release = client_install.asset()
 
+    @property
+    def executable_names(self):
+        suffix = ".exe" if sys.platform == "win32" else ""
+        return "tunnel-client" + suffix, "cloudflared" + suffix
+
     def archive(self, extra=None):
         out = io.BytesIO()
         stem = self.release["name"].removesuffix(".zip")
         with zipfile.ZipFile(out, "w") as bundle:
             for name in (
-                "tunnel-client",
-                "cloudflared",
+                *self.executable_names,
                 "cloudflared-manifest.json",
                 "LICENSE",
                 "NOTICE",
@@ -66,8 +73,7 @@ class ClientInstallTests(unittest.TestCase):
         self.assertEqual(
             set(p.name for p in client.parent.iterdir()),
             {
-                "tunnel-client",
-                "cloudflared",
+                *self.executable_names,
                 "cloudflared-manifest.json",
                 "LICENSE",
                 "NOTICE",
@@ -75,7 +81,11 @@ class ClientInstallTests(unittest.TestCase):
                 self.release["name"].removesuffix(".zip") + ".spdx.json",
             },
         )
-        self.assertEqual(stat.S_IMODE(client.stat().st_mode), 0o700)
+        fd = fileio.open(client, fileio.FILE_FLAGS)
+        try:
+            self.assertTrue(fileio.private(fd, 0o700))
+        finally:
+            os.close(fd)
         self.assertEqual(list(client.parent.parent.glob(".install-*")), [])
 
     def test_corrupt_truncated_or_oversize_download_never_executes(self):
@@ -94,7 +104,7 @@ class ClientInstallTests(unittest.TestCase):
             ("../escape", "bad"),
             ("/absolute", "bad"),
             (link, "target"),
-            ("cloudflared", "duplicate"),
+            (self.executable_names[1], "duplicate"),
         ):
             with self.subTest(extra=extra[0]), patch("subprocess.run") as execute:
                 blob = self.archive(extra)
@@ -121,6 +131,43 @@ class ClientInstallTests(unittest.TestCase):
         parent = client_install.destination(self.store, self.release).parent
         self.assertEqual(list(parent.glob(".install-*")), [])
 
+    @unittest.skipUnless(sys.platform == "win32", "requires native Windows installation")
+    def test_windows_busy_publication_retries_without_replacing_an_existing_client(self):
+        import ctypes
+
+        blob = self.archive()
+        rename = fileio.rename
+        attempts = 0
+
+        def temporarily_busy(*args, **kwargs):
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                raise ctypes.WinError(5)
+            return rename(*args, **kwargs)
+
+        with (
+            patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")),
+            patch.object(fileio, "rename", side_effect=temporarily_busy),
+            patch("keyhole.client_install.time.sleep"),
+        ):
+            client = Path(self.install_with(blob))
+        self.assertEqual(client.read_text(), "synthetic file")
+        self.assertEqual(attempts, 3)
+        before = client.read_bytes()
+        previous_path = client
+        self.release["target"] += "-retry-test"
+        with (
+            patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")),
+            patch.object(fileio, "rename", side_effect=ctypes.WinError(32)),
+            patch("keyhole.client_install.time.sleep"),
+            self.assertRaises(KeyholeError) as caught,
+        ):
+            self.install_with(blob)
+        self.assertEqual(caught.exception.code, "client_install_busy")
+        self.assertEqual(previous_path.read_bytes(), before)
+        self.assertFalse(client_install.destination(self.store, self.release).exists())
+
     def test_network_failure_has_no_server_error_body(self):
         with patch("urllib.request.build_opener") as opener:
             opener.return_value.open.side_effect = urllib.error.URLError("PRIVATE-MARKER")
@@ -142,7 +189,7 @@ class ClientInstallTests(unittest.TestCase):
         self.assertEqual(list(parent.glob(".install-*")), [])
         self.assertEqual(previous.read_text(), "keep")
 
-    def test_damaged_existing_installation_and_symlink_are_not_replaced(self):
+    def test_damaged_existing_installation_is_not_replaced(self):
         blob = self.archive()
         with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")):
             client = Path(self.install_with(blob))
@@ -151,10 +198,22 @@ class ClientInstallTests(unittest.TestCase):
                 self.install_with(blob)
             self.assertEqual(caught.exception.code, "client_install_damaged")
             self.assertEqual(client.read_text(), "changed")
+
+    def test_existing_client_symlink_is_not_replaced(self):
+        blob = self.archive()
+        with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="0.0.14")):
+            client = Path(self.install_with(blob))
             client.unlink()
             outside = self.root / "outside"
             outside.write_text("untouched")
-            client.symlink_to(outside)
+            try:
+                client.symlink_to(outside)
+            except OSError as exc:
+                if getattr(exc, "winerror", None) == 1314:
+                    self.skipTest(
+                        "This standard user cannot create symlinks; junction rejection is tested separately"
+                    )
+                raise
             with self.assertRaises(OSError):
                 self.install_with(blob)
             self.assertEqual(outside.read_text(), "untouched")

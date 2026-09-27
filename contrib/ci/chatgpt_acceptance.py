@@ -1,4 +1,4 @@
-"""A manually authorized, timed synthetic session on a disposable Linux runner.
+"""A manually authorized, timed synthetic session on a disposable runner.
 
 The operator makes real ChatGPT calls during the advertised windows. No remote tool changes grants.
 The report checks local edit/recovery receipts; screenshots of the actual ChatGPT reads are separate evidence.
@@ -25,13 +25,22 @@ from keyhole.state import StateStore
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--wheel", type=Path, required=True)
     args = parser.parse_args()
     if (
         os.environ.get("GITHUB_ACTIONS") != "true"
         or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
-        or platform.system() != "Linux"
+        or platform.system() not in ("Linux", "Windows")
     ):
-        raise SystemExit("Use the protected manual workflow on a disposable Linux runner only.")
+        raise SystemExit(
+            "Use the protected manual workflow on a disposable Linux or Windows runner only."
+        )
+    windows = platform.system() == "Windows"
+    if windows:
+        import ctypes
+
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            raise SystemExit("Windows acceptance must run as the disposable standard user.")
     key = os.environ.pop("KEYHOLE_ACCEPTANCE_KEY", "")
     tunnel = os.environ.pop("KEYHOLE_ACCEPTANCE_TUNNEL", "")
     configure.validate_key(key)
@@ -39,20 +48,27 @@ def main():
     command = shutil.which("keyhole")
     if not command:
         raise SystemExit("The reviewed wheel must be installed before acceptance starts.")
-    root = Path(tempfile.mkdtemp(prefix="keyhole-acceptance-")).resolve()
+    root = Path(
+        tempfile.mkdtemp(prefix="keyhole-acceptance-", dir=Path.cwd() if windows else None)
+    ).resolve()
     store = StateStore(root / "private")
+    workspace = "WindowsDemo" if windows else "LinuxDemo"
     report = {
         "os": platform.platform(),
         "python": platform.python_version(),
         "full_chatgpt_acceptance": False,
         "fixture_only": True,
+        "candidate_commit": os.environ["GITHUB_SHA"],
+        "wheel_sha256": hashlib.sha256(args.wheel.read_bytes()).hexdigest(),
+        "python_machine": platform.machine(),
+        "standard_windows_user": True if windows else None,
     }
 
     def cli(*words):
         result = subprocess.run(
             [command, "--state-dir", str(store.path), *words],
             capture_output=True,
-            text=True,
+            encoding="utf-8",
             timeout=120,
         )
         try:
@@ -90,18 +106,18 @@ def main():
         )
         configured = True
         key = ""
-        demo = root / "LinuxDemo"
+        demo = root / workspace
         demo.mkdir(mode=0o700)
         note = demo / "notes.md"
-        note.write_text(DEMO_TEXT)
+        note.write_bytes(DEMO_TEXT.encode("utf-8"))
         expected = hashlib.sha256(note.read_bytes()).hexdigest()
-        opened = cli("open", str(demo), "--name", "LinuxDemo", "--access", "ro")
+        opened = cli("open", str(demo), "--name", workspace, "--access", "ro")
         report["ready"] = opened["runtime"].get("ready") is True
         window(
-            "read-only: create/select the private Linux app, read notes.md, attempt a refused write",
+            f"read-only: select the private {workspace} app, read notes.md, attempt a refused write",
             240,
         )
-        cli("access", "LinuxDemo", "rw")
+        cli("access", workspace, "rw")
         window(
             "read-write: read current hash, edit the checklist, restore the returned change id", 240
         )
@@ -112,7 +128,7 @@ def main():
         edited_hashes = {
             change["after"]["sha256"]
             for item in changes
-            if item["workspace"] == "LinuxDemo"
+            if item["workspace"] == workspace
             and item["operation"] in ("write", "patch")
             and item["status"] == "restored"
             for change in item["changes"]
@@ -125,7 +141,7 @@ def main():
             change["before"].get("sha256") in edited_hashes
             and change["after"].get("sha256") == expected
             for item in changes
-            if item["workspace"] == "LinuxDemo"
+            if item["workspace"] == workspace
             and item["operation"] == "restore"
             and item["status"] == "committed"
             for change in item["changes"]
@@ -135,7 +151,7 @@ def main():
             hashlib.sha256(note.read_bytes()).hexdigest() == expected
         )
         report["original_sha256"] = expected
-        closed = cli("close", "LinuxDemo")
+        closed = cli("close", workspace)
         report["shutdown_confirmed"] = closed.get("shutdown_confirmed") is True
         window(
             "closed: require a NEW ChatGPT tool call to fail; earlier text is still in the chat",
@@ -165,7 +181,7 @@ def main():
                 )
             except Exception:
                 report["cleanup_shutdown_confirmed"] = False
-        args.output.write_text(json.dumps(report, indent=2) + "\n")
+        args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         # Credentials are discarded only after confirmed shutdown; the runner is disposable either way.
         if not configured or report.get("cleanup_shutdown_confirmed"):
             shutil.rmtree(root)

@@ -2,15 +2,20 @@
 
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-from keyhole.client_install import asset, install
+from keyhole.client_install import asset, finish_staging_operation, install
 from keyhole.state import StateStore
 
 
 def main():
-    root = Path(tempfile.mkdtemp(prefix="keyhole-official-client-")).resolve()
+    root = Path(
+        tempfile.mkdtemp(
+            prefix="keyhole-official-client-", dir=Path.cwd() if sys.platform == "win32" else None
+        )
+    ).resolve()
     try:
         client = install(StateStore(root / "private"), asset())
         result = subprocess.run([client, "--version"], check=True, capture_output=True, text=True)
@@ -19,7 +24,10 @@ def main():
             "Official bundle downloaded, verified and executed; no runtime or tunnel was started."
         )
     finally:
-        shutil.rmtree(root)
+        # The real --version process has exited, but Windows may briefly retain
+        # its executable image. Cleanup must still complete, not ignore errors.
+        finish_staging_operation(lambda: shutil.rmtree(root))
+        assert not root.exists()
 
 
 if __name__ == "__main__":

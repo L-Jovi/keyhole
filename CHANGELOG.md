@@ -8,6 +8,24 @@ a **Refresh**.
 
 ## [Unreleased]
 
+The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
+
+### Added
+
+- Native Windows candidate: handle-relative NTFS access, private state ACLs, cross-process locking,
+  recoverable text edits, parser handle transfer and process cleanup scoped to one state directory.
+  Official Tunnel → ChatGPT read, read-only refusal, edit, restore and closed-read refusal passed on
+  hosted Windows 11 ARM with x64 Python as a standard user. This is not yet a published release.
+- Verified official Windows client bundles, PowerShell command hints and a separate Windows setup guide.
+- Standard-user Windows Server 2025 and Windows 11 ARM checks across x64 Python 3.11–3.14, including
+  installed artifacts, real MCP SDK handshakes and console setup with hidden synthetic key input.
+  The hosted ARM runner uses x64 Python emulation; native ARM Python is not part of this claim.
+
+### Changed
+
+- Replace the edited video, jump-numbered GIF and single-step preview with an ordered screenshot
+  example connecting local commands, real ChatGPT responses and verified on-disk file changes.
+
 ## [0.4.0] - 2026-09-27
 
 The MCP tool definitions are unchanged; an existing ChatGPT app needs no Refresh.
@@ -147,7 +165,8 @@ definitions are unchanged from 0.2.0; an existing app does not need a refresh.
 - Read-only local folders for ChatGPT over OpenAI's Secure MCP Tunnel: `list_workspaces`, `list_directory`,
   `search_files`, `read_file` for text, PDF, DOCX, PPTX, XLSX and images.
 
-[Unreleased]: https://github.com/L-Jovi/keyhole/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/L-Jovi/keyhole/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/L-Jovi/keyhole/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/L-Jovi/keyhole/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/L-Jovi/keyhole/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/L-Jovi/keyhole/releases/tag/v0.3.0

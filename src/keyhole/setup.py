@@ -7,7 +7,8 @@ import webbrowser
 from pathlib import Path
 
 from . import configure
-from .client_install import asset, destination, install
+from . import file_ops as fileio
+from .client_install import asset, client_name, destination, install
 from .diagnostics import human_status
 from .errors import KeyholeError, require
 from .filesystem import absolute_directory
@@ -82,7 +83,7 @@ def select_client(
             "Update your external client with its installer, then run setup --accept-client-version.",
         )
         release = asset()
-        if runtime.client == str(destination(store, release) / "tunnel-client"):
+        if runtime.client == str(destination(store, release) / client_name(release)):
             version = runtime.client_version()
             if version == release["version"]:
                 say(
@@ -129,17 +130,19 @@ def create_demo(store: StateStore, runtime: NativeRuntime, path: Path) -> dict:
         )
         with absolute_directory(path.parent) as (parent, walk):
             try:
-                os.mkdir(path.name, mode=0o700, dir_fd=parent)
+                fileio.mkdir(path.name, mode=0o700, dir_fd=parent)
             except FileExistsError:
                 raise KeyholeError(
                     "demo_exists",
                     "The demo directory already exists; nothing was overwritten. "
                     "Rerun setup and choose a new path, or open the existing folder explicitly.",
                 ) from None
-            fd = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            fd = fileio.open(
+                path.name, os.O_RDONLY | fileio.O_DIRECTORY | fileio.O_NOFOLLOW, dir_fd=parent
+            )
             try:
                 configure.write_exclusive(fd, "notes.md", DEMO_TEXT.encode())
-                os.fsync(fd)
+                fileio.fsync(fd)
                 walk.validate()
             finally:
                 os.close(fd)
@@ -236,7 +239,12 @@ def run(args) -> dict:
     runtime = NativeRuntime(store)
     status = Manager(store, runtime).status()
     say(human_status(status, store.command("setup")))
-    next_step = store.command("open", "/absolute/path/to/folder", "--name", "notes")
+    example_path = (
+        str(Path.home() / "Documents" / "notes")
+        if sys.platform == "win32"
+        else "/absolute/path/to/folder"
+    )
+    next_step = store.command("open", example_path, "--name", "notes")
     if yes("Create a new sample folder and share ONLY that new folder read-only?"):
         default = Path.home() / "KeyholeDemo"
         path = Path(ask(f"New demo folder [{default}]:") or str(default))

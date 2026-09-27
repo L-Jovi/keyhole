@@ -127,7 +127,7 @@ class WriteTests(FixtureCase):
             self.assertEqual((self.a / name).read_text(), "line\n")
         self.refused(
             "not_text",
-            lambda: self.edit("write", "nul.txt", text="a\x00b", expected_sha256="absent"),
+            lambda: self.edit("write", "nul-content.txt", text="a\x00b", expected_sha256="absent"),
         )
         self.refused(
             "input_too_large",
@@ -245,7 +245,7 @@ class WriteTests(FixtureCase):
             )
 
             def stopped(entry, before, after, stage):
-                os.mkdir(entry.name, after["mode"], dir_fd=entry.fd)
+                writes.fileio.mkdir(entry.name, after["mode"], dir_fd=entry.fd)
                 raise KeyboardInterrupt()
 
             for name in ("p1", "p2", "p3"):
@@ -466,7 +466,7 @@ class WriteTests(FixtureCase):
 
     def test_interrupted_mkdir_without_durable_identity_refuses_restore(self):
         def stopped(entry, before, after, stage):
-            os.mkdir(entry.name, after["mode"], dir_fd=entry.fd)
+            writes.fileio.mkdir(entry.name, after["mode"], dir_fd=entry.fd)
             raise KeyboardInterrupt()
 
         with patch.object(Entry, "apply", stopped), self.assertRaises(KeyboardInterrupt):

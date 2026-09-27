@@ -14,6 +14,7 @@ from contextlib import ExitStack
 from datetime import date
 from pathlib import Path
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .filesystem import identity, version
 from .policy import TEXT_LIMIT, capabilities, check_relative, fold
@@ -37,6 +38,8 @@ SHELL_HOOKS = {
     ".zshenv",
     ".direnv",
     ".envrc",
+    "microsoft.powershell_profile.ps1",
+    "profile.ps1",
 }
 
 
@@ -49,7 +52,7 @@ def protected_identities(store) -> set[tuple]:
     result = set()
     for directory in protected_directories(store):
         try:
-            result.add(identity(os.stat(directory)))
+            result.add(identity(fileio.stat(directory)))
         except OSError:
             continue
     return result
@@ -77,12 +80,18 @@ def file_image(data, mode=0o600):
 
 
 def public_image(image):
-    return {k: v for k, v in image.items() if k not in ("data", "identity", "version")}
+    return {
+        k: v for k, v in image.items() if k not in ("data", "identity", "version", "windows_acl")
+    }
 
 
 def same(a, b):
-    return public_image(a) == public_image(b) and (
-        a["kind"] != "directory" or not b.get("identity") or a.get("identity") == b["identity"]
+    return (
+        public_image(a) == public_image(b)
+        and fileio.same_acl(a, b)
+        and (
+            a["kind"] != "directory" or not b.get("identity") or a.get("identity") == b["identity"]
+        )
     )
 
 
@@ -123,16 +132,13 @@ class Journal:
         self.directory = self.store.directory()
         fd = self.directory.__enter__()
         try:
-            dbfd = os.open(
-                "changes.sqlite3", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=fd
+            dbfd = fileio.open(
+                "changes.sqlite3", os.O_RDWR | os.O_CREAT | fileio.O_NOFOLLOW, 0o600, dir_fd=fd
             )
             try:
-                st = os.fstat(dbfd)
+                st = fileio.fstat(dbfd)
                 require(
-                    stat.S_ISREG(st.st_mode)
-                    and st.st_nlink == 1
-                    and st.st_uid == os.getuid()
-                    and stat.S_IMODE(st.st_mode) == 0o600,
+                    stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and fileio.private(dbfd, 0o600),
                     "history_unsafe",
                     "Recovery database must be an owned private regular file.",
                 )
@@ -161,7 +167,7 @@ class Journal:
         self.db.close()
         try:
             require(
-                identity(os.stat("changes.sqlite3", dir_fd=self.fd, follow_symlinks=False))
+                identity(fileio.stat("changes.sqlite3", dir_fd=self.fd, follow_symlinks=False))
                 == self.db_identity,
                 "history_unsafe",
                 "Recovery database was replaced during access.",
@@ -330,23 +336,34 @@ class Entry:
     def snapshot(self):
         self.walk.validate()
         try:
-            st = os.stat(self.name, dir_fd=self.fd, follow_symlinks=False)
+            st = fileio.stat(self.name, dir_fd=self.fd, follow_symlinks=False)
         except FileNotFoundError:
             return dict(ABSENT)
         if stat.S_ISDIR(st.st_mode):
-            return {
-                "kind": "directory",
-                "mode": stat.S_IMODE(st.st_mode),
-                "identity": list(identity(st)),
-            }
+            directory = fileio.open(self.name, fileio.DIR_FLAGS, dir_fd=self.fd)
+            try:
+                return {
+                    "kind": "directory",
+                    **fileio.permissions(directory),
+                    "identity": list(identity(st)),
+                }
+            finally:
+                os.close(directory)
         require(
-            stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and st.st_uid == os.getuid(),
+            stat.S_ISREG(st.st_mode) and st.st_nlink == 1,
             "unsafe_file",
             "Mutations require owned single-link regular files; links and special files are refused.",
         )
-        fd = os.open(self.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=self.fd)
+        fd = fileio.open(
+            self.name, os.O_RDONLY | fileio.O_NOFOLLOW | fileio.O_NONBLOCK, dir_fd=self.fd
+        )
         try:
-            initial = os.fstat(fd)
+            initial = fileio.fstat(fd)
+            require(
+                fileio.owned(fd),
+                "unsafe_file",
+                "Mutations require files owned by the current user.",
+            )
             require(
                 version(initial) == version(st),
                 "content_changed",
@@ -362,22 +379,33 @@ class Entry:
                 size += len(chunk)
                 require(size <= TEXT_LIMIT, "file_too_large", "Mutation snapshot exceeds 8 MiB.")
             require(
-                version(os.fstat(fd)) == version(initial),
+                version(fileio.fstat(fd)) == version(initial),
                 "content_changed",
                 "File changed during snapshot.",
             )
             require(
-                version(os.stat(self.name, dir_fd=self.fd, follow_symlinks=False))
+                version(fileio.stat(self.name, dir_fd=self.fd, follow_symlinks=False))
                 == version(initial),
                 "path_changed",
                 "File was replaced during snapshot.",
             )
             return {
                 **file_image(b"".join(chunks), stat.S_IMODE(st.st_mode)),
+                **fileio.permissions(fd),
                 "version": list(version(st)),
             }
         finally:
             os.close(fd)
+
+    def check_mutable(self):
+        try:
+            fileio.check_mutable(self.name, directory=self.fd)
+        except OSError as exc:
+            raise KeyholeError(
+                "file_read_only",
+                "Windows file permissions, attributes or alternate streams prevent this mutation. "
+                "Review the original locally; Keyhole does not discard these protections.",
+            ) from exc
 
     def apply(self, before, after, stage_name):
         current = self.snapshot()
@@ -390,6 +418,7 @@ class Entry:
         if same(current, after):
             return current
         if before["kind"] == "file":
+            self.check_mutable()
             require(
                 before["mode"] & stat.S_IWUSR,
                 "file_read_only",
@@ -398,16 +427,16 @@ class Entry:
         self.walk.validate()
         if after["kind"] == "absent":
             if before["kind"] == "directory":
-                os.rmdir(self.name, dir_fd=self.fd)
+                fileio.rmdir(self.name, dir_fd=self.fd)
             else:
-                os.unlink(self.name, dir_fd=self.fd)
+                fileio.unlink(self.name, dir_fd=self.fd)
         elif after["kind"] == "directory":
             require(
                 before["kind"] == "absent",
                 "path_conflict",
                 "Directory creation cannot replace an existing path.",
             )
-            os.mkdir(self.name, after["mode"], dir_fd=self.fd)
+            fileio.mkdir(self.name, after["mode"], dir_fd=self.fd)
         else:
             require(
                 before["kind"] in ("absent", "file"),
@@ -420,18 +449,18 @@ class Entry:
                 "history_corrupt",
                 "Recovery snapshot hash mismatch.",
             )
-            tmpfd = os.open(
+            tmpfd = fileio.open(
                 stage_name,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | fileio.O_NOFOLLOW,
                 0o600,
                 dir_fd=self.fd,
             )
             try:
                 with os.fdopen(tmpfd, "wb") as f:
                     f.write(data)
-                    os.fchmod(f.fileno(), after["mode"] & 0o777)
+                    fileio.apply_permissions(f.fileno(), after)
                     f.flush()
-                    os.fsync(f.fileno())
+                    fileio.fsync(f.fileno())
                 latest = self.snapshot()
                 require(
                     same(latest, current) and latest.get("version") == current.get("version"),
@@ -440,21 +469,13 @@ class Entry:
                 )
                 self.walk.validate()
                 if before["kind"] == "absent":
-                    # An exclusive link publishes a new file without overwriting a concurrent creator.
-                    os.link(
-                        stage_name,
-                        self.name,
-                        src_dir_fd=self.fd,
-                        dst_dir_fd=self.fd,
-                        follow_symlinks=False,
-                    )
-                    os.unlink(stage_name, dir_fd=self.fd)
+                    fileio.publish_new(stage_name, self.name, directory=self.fd)
                 else:
-                    os.replace(stage_name, self.name, src_dir_fd=self.fd, dst_dir_fd=self.fd)
+                    fileio.replace(stage_name, self.name, src_dir_fd=self.fd, dst_dir_fd=self.fd)
             finally:
                 with contextlib.suppress(FileNotFoundError):
-                    os.unlink(stage_name, dir_fd=self.fd)
-        os.fsync(self.fd)
+                    fileio.unlink(stage_name, dir_fd=self.fd)
+        fileio.fsync(self.fd)
         self.walk.validate()
         actual = self.snapshot()
         require(
@@ -466,24 +487,31 @@ class Entry:
 
     def clean_stage(self, name):
         try:
-            st = os.stat(name, dir_fd=self.fd, follow_symlinks=False)
+            st = fileio.stat(name, dir_fd=self.fd, follow_symlinks=False)
         except FileNotFoundError:
             return
         require(
-            stat.S_ISREG(st.st_mode) and st.st_uid == os.getuid() and st.st_nlink in (1, 2),
+            stat.S_ISREG(st.st_mode) and st.st_nlink in (1, 2),
             "history_unsafe",
             "Unexpected interrupted staging entry; inspect locally.",
         )
+        stage_fd = fileio.open(name, fileio.FILE_FLAGS, dir_fd=self.fd)
+        try:
+            require(
+                fileio.owned(stage_fd), "history_unsafe", "Staging file is not owned by this user."
+            )
+        finally:
+            os.close(stage_fd)
         if st.st_nlink == 2:
-            target = os.stat(self.name, dir_fd=self.fd, follow_symlinks=False)
+            target = fileio.stat(self.name, dir_fd=self.fd, follow_symlinks=False)
             require(
                 identity(target) == identity(st),
                 "history_unsafe",
                 "Interrupted staging link does not match its destination.",
             )
         self.walk.validate()
-        os.unlink(name, dir_fd=self.fd)
-        os.fsync(self.fd)
+        fileio.unlink(name, dir_fd=self.fd)
+        fileio.fsync(self.fd)
 
 
 def scope_for(grant):
@@ -493,9 +521,9 @@ def scope_for(grant):
 def check_write_path(bridge, grant, path):
     parts = check_relative(path, tuple(grant.get("exclusions", [])))
     require(bool(parts), "invalid_path", "A workspace root cannot be modified.")
-    absolute = fold(str(Path(grant["path"]).joinpath(*parts)))
+    absolute = fold(Path(grant["path"]).joinpath(*parts).as_posix())
     for directory in protected_directories(bridge.store):
-        candidate = fold(str(directory))
+        candidate = fold(directory.as_posix())
         require(
             absolute != candidate
             and not absolute.startswith(candidate + "/")
@@ -516,7 +544,7 @@ def check_write_walk(bridge, walk) -> None:
     protected = protected_identities(bridge.store)
     for fd in walk.fds:
         require(
-            identity(os.fstat(fd)) not in protected,
+            identity(fileio.fstat(fd)) not in protected,
             "protected_control_path",
             "Keyhole code, environment and runtime configuration cannot be modified remotely.",
         )
@@ -762,14 +790,27 @@ class Mutations:
                         require(
                             "\x00" not in text, "not_text", "Text writes cannot contain NUL bytes."
                         )
-                        after = [file_image(text.encode(), source.get("mode", 0o600))]
+                        after = [
+                            {
+                                **file_image(text.encode(), source.get("mode", 0o600)),
+                                **(
+                                    {"windows_acl": source["windows_acl"]}
+                                    if "windows_acl" in source
+                                    else fileio.private_permissions()
+                                    if fileio.WINDOWS
+                                    else {}
+                                ),
+                            }
+                        ]
                     elif operation == "mkdir":
                         require(
                             source["kind"] == "absent",
                             "path_conflict",
                             "Directory path already exists.",
                         )
-                        after = [{"kind": "directory", "mode": 0o700}]
+                        after = [
+                            {"kind": "directory", **fileio.private_permissions(directory=True)}
+                        ]
                     elif operation in ("copy", "move"):
                         require(
                             source["kind"] == "file",
@@ -782,7 +823,17 @@ class Mutations:
                             "destination_exists",
                             "Destination must be absent; use a separate explicit edit to replace it.",
                         )
-                        after = [source, dict(ABSENT)] if operation == "move" else [source, source]
+                        # A new Windows destination starts private, like a new
+                        # text file. Inherited ACLs from a different parent
+                        # cannot be reapplied there without changing access.
+                        destination_image = (
+                            {**source, **fileio.private_permissions()} if fileio.WINDOWS else source
+                        )
+                        after = (
+                            [destination_image, dict(ABSENT)]
+                            if operation == "move"
+                            else [source, destination_image]
+                        )
                     elif operation == "delete":
                         require(
                             source["kind"] == "file",
@@ -810,8 +861,9 @@ class Mutations:
                     record["restores"] = original["change_id"]
                 if resuming:
                     record = old
-                for a, b in zip(before, after, strict=True):
+                for entry, a, b in zip(entries, before, after, strict=True):
                     if a["kind"] == "file" and not same(a, b):
+                        entry.check_mutable()
                         require(
                             a["mode"] & stat.S_IWUSR,
                             "file_read_only",

@@ -8,6 +8,9 @@
 Follow this page from top to bottom. The goal is one real ChatGPT read of a fictional note in a folder
 you deliberately shared. No personal documents are needed to try it.
 
+Windows candidate testers: use the separate [PowerShell setup guide](windows.md). The published 0.4.0
+release does not support Windows; do not use the shell commands below as a Windows installation path.
+
 ## 1. Check access before installing
 
 - **macOS or Ubuntu Linux.** Apple silicon on macOS 15.6/15.7.7 and Ubuntu 24.04 x86_64 have real

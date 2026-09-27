@@ -1,7 +1,6 @@
 """Private atomic grants, local locking, and explicit per-boot activation."""
 
 import contextlib
-import fcntl
 import json
 import os
 import re
@@ -15,11 +14,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from . import file_ops as fileio
 from .errors import KeyholeError, require
 from .filesystem import absolute_directory
 
 DEFAULT_STATE = Path.home() / ".config/keyhole"
 SETUP_HINT = "Run `keyhole setup` first to store the tunnel id and runtime key."
+
+
+def command_hint(parts) -> str:
+    if sys.platform == "win32":
+        return "& " + " ".join("'" + str(part).replace("'", "''") + "'" for part in parts)
+    return shlex.join(parts)
 
 
 def now() -> str:
@@ -28,7 +34,11 @@ def now() -> str:
 
 def boot_id() -> str:
     try:
-        if os.uname().sysname == "Darwin":
+        if sys.platform == "win32":
+            from .windows_process import boot_id as windows_boot_id
+
+            value = windows_boot_id()
+        elif sys.platform == "darwin":
             value = subprocess.check_output(
                 ["/usr/sbin/sysctl", "-n", "kern.bootsessionuuid"],
                 text=True,
@@ -140,7 +150,7 @@ class StateStore:
             parts.extend(["--state-dir", str(self.path)])
         if client:
             parts.extend(["--tunnel-client", client])
-        return shlex.join([*parts, *args])
+        return command_hint([*parts, *args])
 
     @contextmanager
     def directory(self):
@@ -154,11 +164,10 @@ class StateStore:
                 raise KeyholeError("not_configured", SETUP_HINT) from exc
             raise
         try:
-            st = os.fstat(fd)
             require(
-                st.st_uid == os.getuid() and stat.S_IMODE(st.st_mode) == 0o700,
+                fileio.private(fd, 0o700),
                 "state_permissions",
-                "Private state must be owned by the current user with mode 0700.",
+                "Private state must be owned by the current user (0700 on POSIX; private ACL on Windows).",
             )
             yield fd
         except BaseException:
@@ -170,19 +179,20 @@ class StateStore:
     def read(self, name: str = "grants.json", *, missing: bool = False) -> dict:
         with self.directory() as directory:
             try:
-                fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+                fd = fileio.open(
+                    name, os.O_RDONLY | fileio.O_NOFOLLOW | fileio.O_NONBLOCK, dir_fd=directory
+                )
             except FileNotFoundError:
                 if missing:
                     return empty_state()
                 if name == "runtime.json":
                     raise KeyholeError("not_configured", SETUP_HINT) from None
                 raise KeyholeError("offline", "No directory authorization is active.") from None
-            with os.fdopen(fd) as source:
-                st = os.fstat(source.fileno())
+            with os.fdopen(fd, encoding="utf-8") as source:
+                st = fileio.fstat(source.fileno())
                 require(
                     stat.S_ISREG(st.st_mode)
-                    and st.st_uid == os.getuid()
-                    and stat.S_IMODE(st.st_mode) == 0o600
+                    and fileio.private(source.fileno(), 0o600)
                     and st.st_nlink == 1
                     and st.st_size <= 128 * 1024,
                     "state_permissions",
@@ -203,40 +213,43 @@ class StateStore:
         blob = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
         with self.directory() as directory:
             tmp = f".{name}-{uuid4()}.tmp"
-            fd = os.open(
-                tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory
+            fd = fileio.open(
+                tmp,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | fileio.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory,
             )
             try:
                 with os.fdopen(fd, "wb") as out:
                     out.write(blob)
                     out.flush()
-                    os.fsync(out.fileno())
-                os.replace(tmp, name, src_dir_fd=directory, dst_dir_fd=directory)
-                os.fsync(directory)
+                    fileio.fsync(out.fileno())
+                fileio.replace(tmp, name, src_dir_fd=directory, dst_dir_fd=directory)
+                fileio.fsync(directory)
             finally:
                 with contextlib.suppress(FileNotFoundError):
-                    os.unlink(tmp, dir_fd=directory)
+                    fileio.unlink(tmp, dir_fd=directory)
 
     @contextmanager
     def lock(self, timeout: float = 10):
         with self.directory() as directory:
-            fd = os.open(
-                "management.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=directory
+            fd = fileio.open(
+                "management.lock",
+                os.O_RDWR | os.O_CREAT | fileio.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory,
             )
             try:
-                st = os.fstat(fd)
+                st = fileio.fstat(fd)
                 require(
-                    stat.S_ISREG(st.st_mode)
-                    and st.st_uid == os.getuid()
-                    and st.st_nlink == 1
-                    and stat.S_IMODE(st.st_mode) == 0o600,
+                    stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and fileio.private(fd, 0o600),
                     "state_permissions",
                     "Unsafe management lock.",
                 )
                 deadline = time.monotonic() + timeout
                 while True:
                     try:
-                        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        fileio.lock(fd)
                         break
                     except BlockingIOError:
                         if time.monotonic() >= deadline:

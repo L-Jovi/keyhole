@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: keyhole-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
@@ -60,7 +64,7 @@ jobs:
       - run: uv run --no-sync python contrib/glama/smoke_test.py --image keyhole-glama-test
 
   windows-cli:
-    name: Windows unsupported-platform message
+    name: Windows CLI smoke
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
@@ -70,23 +74,76 @@ jobs:
       - run: uv sync --locked
       - run: uv run keyhole --help
       - run: uv run keyhole --version
-      - name: Reject unsupported commands without a traceback
-        run: uv run python -c "import json, subprocess; r = subprocess.run(['keyhole', 'status'], capture_output=True, text=True); assert r.returncode == 1; assert json.loads(r.stdout)['error']['code'] == 'unsupported_platform'; assert 'Traceback' not in r.stderr"
+      - name: Diagnose an unconfigured disposable state without modifying it
+        run: uv run python -c "import json, subprocess, tempfile; from pathlib import Path; p=Path(tempfile.mkdtemp()).resolve()/'unconfigured'; r=subprocess.run(['keyhole','--state-dir',str(p),'status','--redact'],capture_output=True,encoding='utf-8'); assert r.returncode == 0, (r.stdout,r.stderr); value=json.loads(r.stdout); assert not value['configured'], value; assert value['open_workspace_count'] == 0, value; assert not p.exists(), str(p)"
 
   windows-feasibility:
-    name: Windows NTFS primitives (not platform support)
-    runs-on: windows-2025
+    name: Windows native / ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 25
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - name: Install candidate dependencies
+        run: uv pip install --system --python python .
+      - name: Build the wheel and source archive
+        run: uv build
+      - name: Run the standalone probe as a standard user
+        shell: pwsh
+        env:
+          KEYHOLE_TEST_ARTIFACTS: ${{ matrix.python == '3.11' || matrix.python == '3.14' }}
+        run: ./contrib/windows/run-standard-user.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-native-${{ matrix.os }}-${{ matrix.python }}
+          path: |
+            ${{ runner.temp }}/keyhole-windows/report.json
+            ${{ runner.temp }}/keyhole-windows/native-*.txt
+            ${{ runner.temp }}/keyhole-windows/integration-*.txt
+            ${{ runner.temp }}/keyhole-windows/installer-*.txt
+            ${{ runner.temp }}/keyhole-windows/common-*.txt
+            ${{ runner.temp }}/keyhole-windows/artifacts-*.txt
+          if-no-files-found: warn
+
+  windows-installer:
+    name: Windows standard-user wheel / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Run the standalone probe as a standard user
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - name: Install a test-only Windows pseudoterminal controller
+        run: >-
+          uv pip install --system --python python --only-binary :all: pywinpty==3.0.5
+      - run: uv build
+      - name: Exercise the acceptance installer without credentials or a tunnel
         shell: pwsh
-        run: ./contrib/windows/run-standard-user.ps1
+        env:
+          KEYHOLE_ACCEPTANCE_INSTALL_ONLY: "true"
+          KEYHOLE_ACCEPTANCE_KEY: sk-synthetic-not-a-real-credential
+          KEYHOLE_ACCEPTANCE_TUNNEL: tunnel_0123456789abcdef0123456789abcdef
+        run: ./contrib/windows/run-acceptance.ps1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: windows-feasibility
-          path: ${{ runner.temp }}/keyhole-windows/report.json
+          name: windows-standard-user-wheel-${{ matrix.os }}
+          path: ${{ runner.temp }}/keyhole-windows-acceptance/report.json
           if-no-files-found: warn

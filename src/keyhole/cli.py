@@ -9,17 +9,16 @@ from pathlib import Path
 from . import __version__
 from .errors import KeyholeError
 
-UNSUPPORTED_PLATFORM = (
-    "Keyhole runs on macOS and Linux. Windows is not supported: Keyhole's folder boundary is built on POSIX "
-    "file APIs (openat with O_NOFOLLOW) that Windows does not have. Nothing was changed."
-)
-
 
 def platform_problem() -> str | None:
-    if sys.platform in ("win32", "cygwin"):
-        return UNSUPPORTED_PLATFORM
+    if sys.platform == "win32":
+        if sys.getwindowsversion().build < 22000:
+            return (
+                "Windows 11 or Windows Server 2025 on local NTFS is required. Nothing was changed."
+            )
+        return None
     if sys.platform not in ("darwin", "linux"):
-        return "This OS is unsupported. Keyhole is verified on macOS and Ubuntu Linux. Nothing was changed."
+        return "This OS or compatibility layer is unsupported. Use native Python on macOS, Linux or Windows 11. Nothing was changed."
     return None
 
 
@@ -138,12 +137,16 @@ def run_setup(args, parser: argparse.ArgumentParser) -> dict:
 
 
 def main(argv: list[str] | None = None) -> None:
+    if sys.platform == "win32":
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8")
     parser = build_parser()
     args = parser.parse_args(argv)
     problem = platform_problem()
     if problem:
         fail("unsupported_platform", problem)
-    # Imported after the platform check: these modules use POSIX-only APIs at import time.
+    # Load only the filesystem backend supported by this interpreter and OS.
     from .management import Manager
     from .runtime import NativeRuntime
     from .state import DEFAULT_STATE, StateStore
