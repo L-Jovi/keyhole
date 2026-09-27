@@ -258,6 +258,8 @@ def restore_dacl(handle: int, value: bytes) -> None:
     error = advapi.SetSecurityInfo(handle, SE_FILE_OBJECT, flags, None, None, acl, None)
     if error:
         raise ctypes.WinError(error)
+    if file_dacl_signature(snapshot(handle)) != file_dacl_signature(value):
+        raise OSError("Windows could not retain the effective file DACL; publication is refused.")
 
 
 def file_dacl_signature(value: bytes):

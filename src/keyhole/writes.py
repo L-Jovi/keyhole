@@ -823,7 +823,17 @@ class Mutations:
                             "destination_exists",
                             "Destination must be absent; use a separate explicit edit to replace it.",
                         )
-                        after = [source, dict(ABSENT)] if operation == "move" else [source, source]
+                        # A new Windows destination starts private, like a new
+                        # text file. Inherited ACLs from a different parent
+                        # cannot be reapplied there without changing access.
+                        destination_image = (
+                            {**source, **fileio.private_permissions()} if fileio.WINDOWS else source
+                        )
+                        after = (
+                            [destination_image, dict(ABSENT)]
+                            if operation == "move"
+                            else [source, destination_image]
+                        )
                     elif operation == "delete":
                         require(
                             source["kind"] == "file",

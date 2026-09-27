@@ -184,6 +184,37 @@ class WindowsIntegrationTests(unittest.TestCase):
             self.assertIn("Another local authorization change", result.stderr)
         self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
 
+    def test_cross_directory_copy_and_move_are_private_and_restore_original_acl(self):
+        from keyhole import windows_security as security
+
+        self.manager.access("Demo", "rw")
+        original = self.note.read_bytes()
+        digest = hashlib.sha256(original).hexdigest()
+        with fileio.win.walk(self.shared) as parent:
+            with fileio.win.child(parent, self.note.name) as opened:
+                original_acl = security.file_dacl_signature(security.snapshot(opened.value))
+        self.mutate("mkdir", path="Review")
+        copied = self.mutate(
+            "copy", path=self.note.name, destination="Review/copy.md", expected_sha256=digest
+        )
+        moved = self.mutate(
+            "move", path=self.note.name, destination="Review/moved.md", expected_sha256=digest
+        )
+        with fileio.win.walk(self.shared / "Review") as parent:
+            for name in ("copy.md", "moved.md"):
+                with fileio.win.child(parent, name) as opened:
+                    self.assertTrue(security.is_private(security.snapshot(opened.value)))
+        self.assertFalse(self.note.exists())
+        self.mutate("restore", change_id=moved["change_id"])
+        self.assertEqual(self.note.read_bytes(), original)
+        with fileio.win.walk(self.shared) as parent:
+            with fileio.win.child(parent, self.note.name) as opened:
+                self.assertEqual(
+                    security.file_dacl_signature(security.snapshot(opened.value)), original_acl
+                )
+        self.mutate("restore", change_id=copied["change_id"])
+        self.assertFalse((self.shared / "Review/copy.md").exists())
+
     def test_parser_uses_an_inherited_snapshot_handle(self):
         from PIL import Image
 

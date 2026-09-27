@@ -82,11 +82,17 @@ A mutation runs under the same lock as grant changes:
 
 Moves and copies are two single-file steps, not a multi-file transaction; the journal makes an interrupted
 step visible and repairable rather than atomic. A UTF-8 BOM and CRLF line endings are preserved.
-POSIX preserves mode bits, but not ACLs or extended attributes. Windows retains the owned file's DACL
+POSIX preserves mode bits, but not ACLs or extended attributes. In-place Windows edits retain the owned file's DACL
 access entries, their order and protection against parent inheritance. The OS can normalize automatic
 inheritance bookkeeping and child-only flags on files. The read-only attribute is retained; mutation
 refuses read-only, encrypted, compressed or sparse files and files
 with named alternate streams. Other extended metadata and the old file identity are not preserved.
+The staged file's effective DACL is checked before publication and again afterwards. This uses
+[SetSecurityInfo](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setsecurityinfo)
+and the documented [ACE flag meanings](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-ace_header).
+New Windows files, including copy and move destinations, use private owner/SYSTEM/Administrators ACLs;
+inherited access from the source's different parent is not transplanted. Recovery retains the original
+ACL for restoring the original path.
 Windows flushes file contents before publication but has no equivalent directory-fsync guarantee;
 process-interruption recovery tests do not establish sudden-power-loss durability.
 
