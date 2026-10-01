@@ -102,7 +102,7 @@ jobs:
         env:
           KEYHOLE_TEST_ARTIFACTS: ${{ matrix.python == '3.11' || matrix.python == '3.14' }}
         run: ./contrib/windows/run-standard-user.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: windows-native-${{ matrix.os }}-${{ matrix.python }}
@@ -141,7 +141,7 @@ jobs:
           KEYHOLE_ACCEPTANCE_KEY: sk-synthetic-not-a-real-credential
           KEYHOLE_ACCEPTANCE_TUNNEL: tunnel_0123456789abcdef0123456789abcdef
         run: ./contrib/windows/run-acceptance.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: windows-standard-user-wheel-${{ matrix.os }}

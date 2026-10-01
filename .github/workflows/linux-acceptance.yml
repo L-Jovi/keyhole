@@ -45,7 +45,7 @@ jobs:
           KEYHOLE_ACCEPTANCE_TUNNEL: ${{ secrets.KEYHOLE_ACCEPTANCE_TUNNEL }}
           KEYHOLE_ACCEPTANCE_KEY: ${{ secrets.KEYHOLE_ACCEPTANCE_KEY }}
         run: uv run python contrib/ci/chatgpt_acceptance.py --wheel dist/keyhole_mcp-*.whl --output "$RUNNER_TEMP/linux-acceptance.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: linux-chatgpt-acceptance
@@ -73,7 +73,7 @@ jobs:
           KEYHOLE_ACCEPTANCE_TUNNEL: ${{ secrets.KEYHOLE_ACCEPTANCE_TUNNEL }}
           KEYHOLE_ACCEPTANCE_KEY: ${{ secrets.KEYHOLE_ACCEPTANCE_KEY }}
         run: ./contrib/windows/run-acceptance.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: windows-chatgpt-acceptance
