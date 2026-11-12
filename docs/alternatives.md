@@ -14,8 +14,10 @@ RepoRelay's narrow handoff writers suit code review without general editing. A p
 reduce account setup, while creating a different transport and authentication arrangement.
 
 Keyhole borrows the onboarding idea of downloading a verified official client with consent. This does not
-remove OpenAI's account, tunnel and private-app steps. Keyhole is presently verified on specific macOS
-machines; [Linux and Windows evidence](platforms.md) is narrower than full platform support.
+remove OpenAI's account, tunnel and private-app steps. To decide whether Keyhole fits your machine, use
+the [platform evidence](platforms.md). The project records real ChatGPT sessions on Apple silicon macOS,
+Ubuntu 24.04 x86_64 and hosted Windows 11 ARM with x64 Python. Ubuntu 22.04 and Windows Server 2025 have
+automated checks. Each session identifies the candidate it used and the limits of its coverage.
 
 References: [RepoRelay installer](https://github.com/Lukie-81/RepoRelay/blob/main/src/tunnel-client-install.ts),
 [Cloudflare quick tunnels](https://developers.cloudflare.com/tunnel/get-started/),

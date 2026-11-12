@@ -1,11 +1,15 @@
 # Platform evidence
 
-Test mechanisms and demonstrated user outcomes are different. A green unsupported-platform check does
-not mean the application works on that platform. Updated 2026-09-27.
+Before choosing a setup guide, find your operating system and processor below. The automated checks run
+against specific builds. For example, the early Windows refusal check passed when Keyhole correctly
+rejected Windows; the native backend has separate results below. In a recorded ChatGPT session, a person used the
+private app to read, edit and restore a sample file, then tried a new read after access closed.
+The September 27, 2026 records identify the builds and machines used; later release artifacts have
+their own checks.
 
-| Platform | Checks provided by this change | Support statement |
+| Platform | Checks recorded for this platform | Support statement |
 | --- | --- | --- |
-| macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 with this change | Supported on the verified Apple silicon machines; Intel/older macOS untested |
+| macOS | Regression suite, wheel/sdist installation, fresh tool PATH, real pinned client download; ChatGPT read/edit/restore/close verified on Apple silicon 15.7.7 at `01054bc` | Supported on the verified Apple silicon machines; Intel/older macOS untested |
 | Ubuntu 24.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation, official client download, Linux Docker fixture and real official Tunnel → ChatGPT read/edit/restore/close passed | Supported; full ChatGPT acceptance used Python 3.12 |
 | Ubuntu 22.04 x86_64 | Required Python 3.11–3.14 matrix, artifact installation and official client download passed | Supported with automated coverage; the account-based ChatGPT session ran on 24.04 |
 | Windows Server 2025 | Native filesystem, ACL, locking, parser, process, MCP handshake and artifact checks across x64 Python 3.11–3.14 passed | Supported from 0.5.0 with automated coverage |
