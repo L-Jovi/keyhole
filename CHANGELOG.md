@@ -1,5 +1,7 @@
 # Changelog
 
+> Date convention: unqualified dates and local times in this document's own records use `Asia/Singapore` (SGT, UTC+08:00). Explicit source zones and timestamp offsets take precedence; a date alone does not establish a clock time.
+
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, minor versions may change

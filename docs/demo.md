@@ -1,5 +1,7 @@
 # From a local note to a checklist
 
+> Date convention: unqualified dates and local times in this document's own records use `Asia/Singapore` (SGT, UTC+08:00). Explicit source zones and timestamp offsets take precedence; a date alone does not establish a clock time.
+
 Keyhole lets ChatGPT work on a file **where it already lives on your computer**. You choose the folder
 in your terminal, ask for a change in ChatGPT, and inspect the result locally. You can restore a retained
 change and close access when finished.

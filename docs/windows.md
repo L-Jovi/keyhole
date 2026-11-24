@@ -1,5 +1,7 @@
 # Windows setup
 
+> Date convention: unqualified dates and local times in this document's own records use `Asia/Singapore` (SGT, UTC+08:00). Explicit source zones and timestamp offsets take precedence; a date alone does not establish a clock time.
+
 > Native Windows support requires **Keyhole 0.5.0 or later**; 0.4.0 and older refuse Windows.
 > Real ChatGPT acceptance passed on a hosted Windows 11 ARM machine with x64 Python on 2026-09-27;
 > no physical consumer PC has been tested. See [platform evidence](platforms.md) for checks and limits.
