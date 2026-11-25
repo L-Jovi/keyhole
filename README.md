@@ -178,8 +178,12 @@ and `keyhole history` use. ChatGPT can see paths, hashes and change ids, never t
   record and 48 MiB so a full history does not prevent repair. Retry an interrupted restore with the same
   request id; successful recovery returns history to the normal limits.
 - Closing or forgetting a folder keeps its history. `keyhole purge-history --before 2026-01-01 --confirm`
-  deletes completed records before a date. Eviction or purge removes both recovery and replay protection
-  for those records; history is not a permanent audit log.
+  deletes completed records before the start of that UTC calendar date: recorded `created_at`
+  values use UTC, and the existing query compares them with the date string. The CLI also rejects
+  a cutoff later than the host's local current date; near a timezone boundary that guard can
+  differ from the UTC day. This describes the current implementation without changing the
+  purge operation. Eviction or purge removes both recovery and replay protection for those
+  records; history is not a permanent audit log.
 - Prefer your own version control? `keyhole open <dir> --access rw --recovery off` keeps paths and hashes
   only. Edits are still hash-checked and interrupted operations can still be repaired, but `restore_change`
   refuses committed edits for that folder.

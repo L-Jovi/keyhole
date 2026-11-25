@@ -39,3 +39,14 @@ Run the tests from a normal terminal: two of them spawn the real server and need
 - Keys never appear in code, tests, logs or model-visible output; tests use obviously fake values.
 - A change to a trust boundary is not done until a test shows the boundary holding and, for anything ChatGPT
   can observe, one real call through ChatGPT was made.
+
+## Document dates and language
+
+Keep an existing document's language and declared timezone. New calendar dates
+must have an explicit `date_timezone` or a clear local scope; preserve day-only
+precision instead of inventing midnight. Precise timestamps need a UTC offset
+or `Z`. The team's UTC+08:00 region name is `Asia/Singapore`; a new document may
+use another explicit suitable zone. Conversation or host timezone changes do
+not migrate documents or existing schedules. Preserve source-specific dates,
+native schemas and sealed bytes; record legacy interpretations outside an
+immutable artifact.

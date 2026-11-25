@@ -1,5 +1,7 @@
 # Related projects
 
+> Date convention: unqualified dates and local times in this document's own records use `Asia/Singapore` (SGT, UTC+08:00). Explicit source zones and timestamp offsets take precedence; a date alone does not establish a clock time.
+
 Reviewed 2026-09-27 against public documentation and setup code. These are documented design differences,
 not independent security audits or end-to-end compatibility tests of the other projects.
 
